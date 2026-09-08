@@ -288,12 +288,9 @@ result_mode:
       "recommendation_reason": "与当前疾病、方向和生长阶段匹配",
       "usage": "产品知识库中的原始使用说明",
       "precautions": ["按照产品标签和专业人员建议使用"],
-      "purchase_channel": {
-        "official_phone": "厂家官方电话；缺失时为null",
-        "official_website": "厂家官方网址；缺失时为null",
-        "purchase_method": "经核验的购买或咨询方式；缺失时为null",
-        "channel_status": "渠道核验状态；缺失时为null"
-      },
+      "official_website": "厂家官方网址；缺失时为null",
+      "contact_info": "厂家官方电话；缺失时为null",
+      "purchase_url": null,
       "source_id": "product_kb_001"
     }
   ]
@@ -301,6 +298,7 @@ result_mode:
 ```
 
 - 产品必须来自固定产品知识库。
+- 产品响应一次返回1～3项，必须在工作流代码层完成相关性过滤、去重和数量截断。
 - `source_id` 必填，用于证明来源。
 - 不得虚构名称、厂家、成分、剂量或产品效果。
 - 无匹配时 `result_mode=no_match` 且产品数组为空。
@@ -368,7 +366,7 @@ result_mode:
 | `question` | `success=true`；常规问题1～2个，宽泛症状首轮最多3个；`follow_up_round` 为1～4；第4轮必须带触发理由 |
 | `diagnosis` | `diagnosis` 非空；证据均有来源 |
 | `direction_selection` | `solution_directions.length` 为1～4；状态为 `waiting_for_selection` |
-| `product` | `result_mode=product`；产品1～4个且都有 `source_id` |
+| `product` | `result_mode=product`；产品1～3个且都有 `source_id` |
 | `management` | `result_mode=management`；产品数组为空；管理建议非空 |
 | `no_match` | `result_mode=no_match`；产品数组为空 |
 | `emergency` | 停止推荐；方向和产品数组为空 |

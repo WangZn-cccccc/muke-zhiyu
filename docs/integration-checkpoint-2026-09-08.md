@@ -1,7 +1,7 @@
 # 牧客智语真实工作流联调检查点
 
 日期：2026-09-08  
-状态：暂停于“前端接入本地代理”之前
+状态：真实前后半程已接入并通过本地验收
 
 ## 当前目标
 
@@ -18,12 +18,16 @@
 - 前端API客户端：`src/workflow-api.ts`
 - 代理程序：`server/local-proxy.mjs`
 - API合同、Schema、黄金案例和自动合同测试已建立。
+- 真实响应已驱动诊断卡、方向卡、产品卡、管理建议、无匹配、紧急、服务结束与错误状态。
+- 用户选择方向时仅提交稳定方向ID；产品卡最多展示3项，并仅为真实安全网址提供跳转。
+- 2026-09-08真实链路验收：非危重病例经2题追问得到“仔猪黄痢”诊断，随后返回4个方向；选择`DIR-0086`后返回`product`及真实产品“口服补液盐”。
+- 另用危重病例验证`emergency`拦截成功，方向和商品均为空。
 
-## 当前已知问题
+## 当前观察项
 
-Coze真实响应中`questions.length=2`，但`asked_questions.length=0`。Coze需在Node4生成问题后、normalize_output之前，把`questions[].id`合并进`asked_questions`并跨轮去重。联调时必须复查。
+首轮真实响应仍可能出现`questions.length>0`而`asked_questions`暂未同步的问题；前端使用`pending_question_ids`和`question_answers`完成本轮交互，但Coze仍应持续保证`asked_questions`跨轮累计唯一。
 
-## 明天需要完成
+## 已完成的接入项
 
 1. 启动本地代理并确认`/health`正常。
 2. 启动现有前端，不改动受保护的移动端运行时文件。
@@ -34,7 +38,7 @@ Coze真实响应中`questions.length=2`，但`asked_questions.length=0`。Coze�
 7. “其他”必须填写并保存`other_text`。
 8. 动态渲染diagnosis、direction_selection、management、product、no_match、emergency、service_end和error。
 9. 保留现有动画风格，用真实状态驱动，不重做视觉设计。
-10. 跑合同测试、构建测试和一次完整浏览器流程。
+10. 跑合同测试、UI状态测试、运行时完整性检查、构建测试和真实HTTP流程。
 
 ## 不得偏离的规则
 

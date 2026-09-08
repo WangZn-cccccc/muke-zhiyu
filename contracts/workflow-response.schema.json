@@ -45,7 +45,7 @@
     "prefer_company_product": { "type": "boolean" },
     "recommendation_status": { "enum": ["not_started", "waiting_for_selection", "processing", "completed", "failed"] },
     "result_mode": { "type": ["string", "null"], "enum": ["product", "management", "no_match", null] },
-    "recommended_products": { "type": "array", "maxItems": 4, "items": { "$ref": "#/$defs/product" } },
+    "recommended_products": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/product" } },
     "emergency": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/emergency" }] },
     "service_end_reason": { "type": ["string", "null"], "enum": ["testing_required", "vet_required", "customer_service", "follow_up_limit_reached", null] },
     "error": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/error" }] },
@@ -178,11 +178,14 @@
     "direction": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "description", "direction_type", "priority", "product_category_tags", "company_product_categories", "prefer_company_product", "source_rule_id"],
+      "required": ["id", "name", "description", "target_problem", "mechanism", "expected_improvement", "direction_type", "priority", "product_category_tags", "company_product_categories", "prefer_company_product", "source_rule_id"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
         "description": { "type": "string", "minLength": 1 },
+        "target_problem": { "type": "string", "minLength": 1 },
+        "mechanism": { "type": "string", "minLength": 1 },
+        "expected_improvement": { "type": "string", "minLength": 1 },
         "direction_type": { "enum": ["product", "management"] },
         "priority": { "type": "integer", "minimum": 1 },
         "product_category_tags": { "type": "array", "items": { "type": "string" } },
@@ -204,6 +207,9 @@
         "recommendation_reason": { "type": "string", "minLength": 1 },
         "usage": { "type": "string", "minLength": 1 },
         "precautions": { "type": "array", "items": { "type": "string" } },
+        "official_website": { "type": ["string", "null"], "pattern": "^https?://" },
+        "contact_info": { "type": ["string", "null"] },
+        "purchase_url": { "type": ["string", "null"], "pattern": "^https?://" },
         "source_id": { "type": "string", "minLength": 1 }
       }
     },

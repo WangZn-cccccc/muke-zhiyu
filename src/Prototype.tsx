@@ -3,7 +3,7 @@ import "@fontsource-variable/noto-sans-sc";
 import { AnimatePresence, motion } from "motion/react";
 import { CameraIcon, ChatBubbleIcon, CheckCircledIcon, ChevronDownIcon, ChevronRightIcon, ClipboardIcon, CopyIcon, Cross2Icon, DotsHorizontalIcon, ExitIcon, GearIcon, MagnifyingGlassIcon, MobileIcon, PaperPlaneIcon, Pencil2Icon, PersonIcon, PlusIcon, QuestionMarkCircledIcon, SpeakerLoudIcon, StarIcon, TrashIcon } from "@radix-ui/react-icons";
 import { BottomSheet, KeyboardInput, KeyboardTextarea, MobileScroll, useKeyboard, useKeyboardInsets } from "./mobile";
-import { runWorkflow, type WorkflowResponse } from "./workflow-api";
+import { runWorkflow, type WorkflowDirection, type WorkflowProduct, type WorkflowResponse } from "./workflow-api";
 
 type Screen = "login" | "phone" | "home" | "chat" | "settings" | "profile";
 type DemoPhase = "analyzing" | "followup" | "diagnosing" | "diagnosis" | "directionLoading" | "directions" | "productLoading" | "products";
@@ -61,7 +61,9 @@ type LiveAnswer = { value: string; other: string };
 type CompletedQuestion = { id: string; question: string; answer: string };
 type PastTurn =
   | { id: string; kind: "questions"; questions: CompletedQuestion[] }
+  | { id: string; kind: "diagnosis"; result: WorkflowResponse }
   | { id: string; kind: "message"; assistant: string; user: string };
+type LoadingMode = "analysis" | "directions" | "products";
 
 function getCaseSummary(caseData: Record<string, any>) {
   const morbidity = caseData.morbidity || {};
@@ -87,6 +89,56 @@ function getCaseSummary(caseData: Record<string, any>) {
   ].filter(item => item.value && String(item.value).trim());
 }
 
+function isSafeHttpUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try { return ["http:", "https:"].includes(new URL(value).protocol); }
+  catch { return false; }
+}
+
+function DiagnosisContent({ result, onDirections }: { result: WorkflowResponse; onDirections?: () => void }) {
+  if (!result.diagnosis) return null;
+  const summary = getCaseSummary(result.case_data || {});
+  return <section className="editorial-section live-diagnosis">
+    {summary.length > 0 && <div className="case-summary"><div className="case-summary-head"><strong>已确认病例信息</strong><span>{summary.length} 项</span></div><div className="case-summary-grid">{summary.map(item => <div className="case-summary-item" key={item.label}><span>{item.label}</span><strong>{String(item.value)}</strong></div>)}</div></div>}
+    <h2>{result.diagnosis.display_title || "初步判断"}</h2>
+    <p className="live-response">{result.response}</p>
+    {result.diagnosis.warning && <div className="editorial-warning"><QuestionMarkCircledIcon/><span>{result.diagnosis.warning}</span></div>}
+    {onDirections && <button className="primary-flow-button live-direction-cta" onClick={onDirections}>查看解决方向 <ChevronRightIcon/></button>}
+  </section>;
+}
+
+function DirectionCards({ directions, onChoose }: { directions: WorkflowDirection[]; onChoose: (direction: WorkflowDirection) => void }) {
+  return <div className="direction-list live-direction-list">{directions.map((item, index) => <button key={item.id} onClick={() => onChoose(item)}>
+    <span className="direction-index">{index + 1}</span>
+    <span className="direction-copy"><strong>{item.name}</strong>{item.description && <span className="direction-description">{item.description}</span>}
+      {item.target_problem && <small><b>针对问题</b><span>{item.target_problem}</span></small>}
+      {item.mechanism && <small><b>作用方式</b><span>{item.mechanism}</span></small>}
+      {item.expected_improvement && <small><b>预期改善</b><span>{item.expected_improvement}</span></small>}
+    </span>
+    <ChevronRightIcon/>
+  </button>)}</div>;
+}
+
+function ProductCard({ product, index }: { product: WorkflowProduct; index: number }) {
+  const features = Array.isArray(product.features) ? product.features.filter(Boolean) : [];
+  const precautions = Array.isArray(product.precautions) ? product.precautions.filter(Boolean) : [];
+  const officialWebsite = isSafeHttpUrl(product.official_website) ? product.official_website : null;
+  const purchaseUrl = isSafeHttpUrl(product.purchase_url) ? product.purchase_url : null;
+  return <article className="product-card live-product-card">
+    <div className="product-heading"><span className="product-rank">{index === 0 ? "首选" : `推荐${index + 1}`}</span><strong>{product.product_name}</strong><small>{product.manufacturer || "厂家信息暂缺"}{product.product_category ? ` · ${product.product_category}` : ""}</small></div>
+    <div className="product-reason"><b>推荐理由</b><span>{product.recommendation_reason}</span></div>
+    <details><summary>查看完整产品资料 <ChevronDownIcon/></summary>
+      <dl>
+        {features.length > 0 && <div><dt>产品特点</dt><dd>{features.join("；")}</dd></div>}
+        <div><dt>使用方式</dt><dd>{product.usage || "请按当前产品标签及兽医指导使用"}</dd></div>
+        <div><dt>注意事项</dt><dd>{precautions.length > 0 ? precautions.join("；") : "请遵循当前产品标签、休药期及兽医指导"}</dd></div>
+        {product.contact_info && <div><dt>厂家电话</dt><dd>{product.contact_info}</dd></div>}
+      </dl>
+      {(officialWebsite || purchaseUrl) && <div className="product-channel-actions">{officialWebsite && <a href={officialWebsite} target="_blank" rel="noopener noreferrer">访问厂家官网 <ChevronRightIcon/></a>}{purchaseUrl && <a href={purchaseUrl} target="_blank" rel="noopener noreferrer">查看购买渠道 <ChevronRightIcon/></a>}</div>}
+    </details>
+  </article>;
+}
+
 function LiveWorkflowPanel({ initialText }: { initialText: string }) {
   const keyboard = useKeyboard();
   const [result, setResult] = useState<WorkflowResponse | null>(null);
@@ -94,19 +146,22 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
   const [error, setError] = useState("");
   const [answers, setAnswers] = useState<Record<string, LiveAnswer>>({});
   const [pastTurns, setPastTurns] = useState<PastTurn[]>([]);
+  const [loadingMode, setLoadingMode] = useState<LoadingMode>("analysis");
   const conversationId = useRef(`conv_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`);
+  const lastRequest = useRef<{ text: string; context: string; mode: LoadingMode }>({ text: initialText, context: "", mode: "analysis" });
 
-  const execute = async (text: string, context = "") => {
-    setLoading(true); setError(""); keyboard.hide();
+  const execute = async (text: string, context = "", mode: LoadingMode = "analysis") => {
+    lastRequest.current = { text, context, mode };
+    setLoadingMode(mode); setLoading(true); setError(""); keyboard.hide();
     try {
-      const next = await runWorkflow({ user_input: text, conversation_context: context, conversation_id: conversationId.current });
+      const next = await runWorkflow({ user_input: text, conversation_context: context, conversation_id: conversationId.current, request_id: `req_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}` });
       setResult(next); setAnswers({});
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "连接工作流失败，请稍后重试");
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { void execute(initialText); }, [initialText]);
+  useEffect(() => { void execute(initialText, "", "analysis"); }, [initialText]);
 
   const questions = Array.isArray(result?.questions) ? result.questions : [];
   const ready = questions.length > 0 && questions.every(q => !q.required || Boolean(answers[q.id]?.value && (answers[q.id].value !== "other" || answers[q.id].other.trim())));
@@ -125,14 +180,26 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
     });
     const requestReply = requestParts.join("；");
     setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "questions", questions: completedQuestions }]);
-    void execute(requestReply, JSON.stringify(context));
+    void execute(requestReply, JSON.stringify(context), "analysis");
   };
-  const choose = (id: string, name: string) => {
+  const requestDirections = () => {
     if (!result) return;
-    const context = { ...result, selected_direction: id };
-    setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: result.response, user: `我选择：${name}` }]);
-    void execute(`选择${name}`, JSON.stringify(context));
+    const snapshot = structuredClone(result) as WorkflowResponse;
+    setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "diagnosis", result: snapshot }]);
+    void execute("请根据当前诊断结果，给我治疗方案和解决方向", JSON.stringify(snapshot), "directions");
   };
+  const choose = (direction: WorkflowDirection) => {
+    if (!result) return;
+    const context = { ...structuredClone(result), selected_direction: direction.id };
+    setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: result.response, user: `我选择：${direction.name}` }]);
+    void execute(direction.id, JSON.stringify(context), "products");
+  };
+
+  const loadingCopy = loadingMode === "directions"
+    ? { title: "正在整理适合当前病例的解决方向", detail: "正在核对方向规则、管理建议和适用边界…" }
+    : loadingMode === "products"
+      ? { title: "正在匹配适合当前方向的产品", detail: "正在根据所选方向筛选并核对真实产品资料…" }
+      : { title: "正在结合病例和知识库分析", detail: "真实工作流可能需要一点时间，请稍候…" };
 
   return <>
     <div className="service-banner"><span className="service-dot"/><div><strong>24小时养猪智能助手</strong><small>养殖问题随时问，提供更有依据的参考建议</small></div></div>
@@ -141,12 +208,11 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
     {pastTurns.map(turn => turn.kind === "questions" ? <motion.section className="answered-question-card" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
       <div className="answered-card-head"><CheckCircledIcon/><strong>本轮信息已补充</strong></div>
       <div className="answered-items">{turn.questions.map(item => <div className="answered-item" key={item.id}><span>{item.question}</span><strong>{item.answer}</strong></div>)}</div>
-    </motion.section> : <div className="past-turn" key={turn.id}><div className="past-assistant-message">{turn.assistant}</div><motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div></div>)}
-    {loading && <div className="diagnosing-card"><span className="thinking-orb"/><div><strong>正在结合病例和知识库分析</strong><p>真实工作流可能需要一点时间，请稍候…</p></div></div>}
-    {error && <div className="live-error"><strong>暂时没有连接成功</strong><span>{error}</span><button onClick={() => void execute(initialText)}>重新尝试</button></div>}
+    </motion.section> : turn.kind === "diagnosis" ? <motion.div className="past-rich-turn" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}><DiagnosisContent result={turn.result}/></motion.div> : <div className="past-turn" key={turn.id}><div className="past-assistant-message">{turn.assistant}</div><motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div></div>)}
+    {loading && <div className={`diagnosing-card loading-${loadingMode}`}><span className="thinking-orb"/><div><strong>{loadingCopy.title}</strong><p>{loadingCopy.detail}</p></div></div>}
+    {error && <div className="live-error"><strong>暂时没有连接成功</strong><span>{error}</span><button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button></div>}
     {!loading && result && <motion.article className="diagnosis-result live-result" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>
-      <div className="result-kicker"><CheckCircledIcon />{result.response_type === "question" ? "需要补充信息" : "真实分析结果"}</div>
-      {result.response_type !== "diagnosis" && result.response_type !== "question" && <p className="live-response">{result.response}</p>}
+      <div className="result-kicker"><CheckCircledIcon />{result.response_type === "question" ? "需要补充信息" : result.response_type === "direction_selection" ? "解决方向已生成" : result.response_type === "product" ? "产品匹配已完成" : result.response_type === "management" ? "管理建议已生成" : "真实分析结果"}</div>
       {result.response_type === "question" && <div className="live-questions">
         {questions.map((q, index) => <div className="question-block" key={q.id}><strong><i>{index + 1}</i>{q.question}</strong>
           {q.question_type === "single_choice" ? <div>{q.options.map(option => <button key={option.value} className={answers[q.id]?.value === option.value ? "selected" : ""} onClick={() => setAnswers(old => ({...old,[q.id]:{value:option.value,other:old[q.id]?.other || ""}}))}>{option.label}</button>)}{q.allow_other && !q.options.some(option => option.value === "other") && <button className={answers[q.id]?.value === "other" ? "selected" : ""} onClick={() => setAnswers(old => ({...old,[q.id]:{value:"other",other:old[q.id]?.other || ""}}))}>其他</button>}</div>
@@ -155,13 +221,19 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
         </div>)}
         <div className="question-progress"><span>{questions.filter(q => answers[q.id]?.value).length}/{questions.length} 已回答</span><button className="continue-button" disabled={!ready} onClick={submitAnswers}>完成并继续 <ChevronRightIcon /></button></div>
       </div>}
-      {result.response_type === "diagnosis" && Boolean(result.diagnosis) && <section className="editorial-section live-diagnosis">
-        {getCaseSummary((result.case_data || {}) as Record<string, any>).length > 0 && <div className="case-summary"><div className="case-summary-head"><strong>已确认病例信息</strong><span>{getCaseSummary((result.case_data || {}) as Record<string, any>).length} 项</span></div><div className="case-summary-grid">{getCaseSummary((result.case_data || {}) as Record<string, any>).map(item => <div className="case-summary-item" key={item.label}><span>{item.label}</span><strong>{String(item.value)}</strong></div>)}</div></div>}
-        <h2>{(result.diagnosis as any).display_title || "初步判断"}</h2><p className="live-response">{result.response}</p><div className="editorial-warning"><QuestionMarkCircledIcon/><span>{(result.diagnosis as any).warning}</span></div>
+      {result.response_type === "diagnosis" && <DiagnosisContent result={result} onDirections={requestDirections}/>}
+      {result.response_type === "direction_selection" && <section className="direction-section live-direction-section">
+        {result.management_advice?.length > 0 && <div className="management-guidance compact-management"><h2>当前管理与排查建议</h2><span>先做好基础管理，再选择下一步改善方向</span><ul>{result.management_advice.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+        <div className="section-intro"><span>下一步</span><h2>你想先了解哪个解决方向？</h2><p>{result.response || "选择一个方向，继续查看针对当前问题的改善方式。"}</p></div>
+        <DirectionCards directions={result.solution_directions || []} onChoose={choose}/>
       </section>}
-      {result.response_type === "direction_selection" && <section className="direction-section"><div className="section-intro"><h2>选择你想先了解的解决方向</h2></div><div className="direction-list">{((result.solution_directions as any[]) || []).map((item,index)=><button key={item.id} onClick={()=>choose(item.id,item.name)}><span className="direction-index">{index+1}</span><span><strong>{item.name}</strong><small>{item.description}</small></span><ChevronRightIcon/></button>)}</div></section>}
-      {result.response_type === "product" && <section className="product-result">{((result.recommended_products as any[]) || []).map((item,index)=><div className="product-card" key={item.product_id || index}><div><span className="product-rank">{index===0?"首选":`推荐${index+1}`}</span><strong>{item.product_name || item.name}</strong></div><dl><div><dt>生产厂家</dt><dd>{item.manufacturer || "产品资料暂无相关信息"}</dd></div><div><dt>推荐原因</dt><dd>{item.recommendation_reason}</dd></div><div><dt>使用方式</dt><dd>{item.usage || "请按产品标签及兽医指导使用"}</dd></div></dl></div>)}</section>}
-      {(["management","no_match","knowledge","emergency","out_of_scope","service_end","error"] as string[]).includes(result.response_type) && <div className={`live-terminal ${result.response_type}`}>{result.response_type === "emergency" && <QuestionMarkCircledIcon/>}<span>{result.response}</span></div>}
+      {result.response_type === "product" && <section className="product-result live-products"><div className="section-intro"><span>匹配结果</span><h2>适合当前方向的产品</h2><p>{result.response}</p></div>{(result.recommended_products || []).map((item, index) => <ProductCard product={item} index={index} key={item.product_id}/>) }<div className="product-safety">产品信息用于辅助了解，不替代兽医诊断、处方及当前产品标签；使用前请核对适用对象、剂型、休药期和当地监管要求。</div></section>}
+      {result.response_type === "management" && <section className="management-guidance live-management"><h2>当前管理与排查建议</h2><span>{result.response}</span><ul>{(result.management_advice || []).map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
+      {result.response_type === "no_match" && <section className="no-match-card live-no-match"><strong>暂未匹配到可靠产品</strong><p>{result.response}</p><span>没有可靠结果时不会使用其他方向的产品补位，你可以返回重新选择方向或联系专业人员进一步处理。</span></section>}
+      {result.response_type === "emergency" && <section className="live-emergency"><QuestionMarkCircledIcon/><div><span>紧急风险提醒</span><h2>{result.emergency?.title || "发现需要立即处理的风险信号"}</h2><p>{result.response}</p><ol>{(result.emergency?.actions || []).map((item, index) => <li key={index}>{item}</li>)}</ol></div></section>}
+      {result.response_type === "service_end" && <section className="live-terminal service-end"><strong>{result.service_end_reason === "testing_required" ? "建议进行专业检测" : result.service_end_reason === "vet_required" ? "建议联系专业兽医" : result.service_end_reason === "follow_up_limit_reached" ? "现有信息仍不足" : "建议联系在线客服"}</strong><span>{result.response}</span></section>}
+      {result.response_type === "error" && <section className="live-terminal error"><strong>本次请求未完成</strong><span>{result.response || result.error?.message}</span>{result.error?.retryable && <button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button>}</section>}
+      {(["knowledge","out_of_scope"] as string[]).includes(result.response_type) && <div className={`live-terminal ${result.response_type}`}><span>{result.response}</span></div>}
     </motion.article>}
   </>;
 }
