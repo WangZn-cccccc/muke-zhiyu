@@ -96,6 +96,18 @@ function isSafeHttpUrl(value: unknown): value is string {
   catch { return false; }
 }
 
+function deduplicateDirections(directions: WorkflowDirection[]) {
+  const seen = new Set<string>();
+  return directions.filter(direction => {
+    const key = [direction.name, direction.mechanism, direction.expected_improvement]
+      .map(value => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("zh-CN"))
+      .join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function DiagnosisContent({ result, onDirections }: { result: WorkflowResponse; onDirections?: () => void }) {
   if (!result.diagnosis) return null;
   const summary = getCaseSummary(result.case_data || {});
@@ -109,7 +121,8 @@ function DiagnosisContent({ result, onDirections }: { result: WorkflowResponse; 
 }
 
 function DirectionCards({ directions, onChoose }: { directions: WorkflowDirection[]; onChoose: (direction: WorkflowDirection) => void }) {
-  return <div className="direction-list live-direction-list">{directions.map((item, index) => <button key={item.id} onClick={() => onChoose(item)}>
+  const uniqueDirections = deduplicateDirections(directions);
+  return <div className="direction-list live-direction-list">{uniqueDirections.map((item, index) => <button key={item.id} onClick={() => onChoose(item)}>
     <span className="direction-index">{index + 1}</span>
     <span className="direction-copy"><strong>{item.name}</strong>{item.description && <span className="direction-description">{item.description}</span>}
       {item.mechanism && <small><b>作用方式</b><span>{item.mechanism}</span></small>}

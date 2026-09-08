@@ -41,6 +41,13 @@ test("recommendation results can return to the preserved direction list", () => 
   assert.equal(source.match(/onClick=\{returnToDirections\}/g)?.length, 3);
 });
 
+test("duplicate direction content is removed before rendering", () => {
+  assert.match(source, /function deduplicateDirections/);
+  assert.match(source, /direction\.name, direction\.mechanism, direction\.expected_improvement/);
+  assert.match(source, /const uniqueDirections = deduplicateDirections\(directions\)/);
+  assert.match(source, /uniqueDirections\.map/);
+});
+
 test("contract failures expose actionable details without repeating stale questions", () => {
   assert.match(apiSource, /contract_errors/);
   assert.match(apiSource, /WorkflowClientError/);
