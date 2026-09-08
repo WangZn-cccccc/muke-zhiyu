@@ -1,0 +1,27 @@
+# Local secrets
+.env
+.env.*
+!.env.local.example
+api-key.txt
+
+# Dependencies and builds
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+
+# Local caches and temporary files
+.pnpm-store/
+.codex_tmp/
+.codex-temp/
+tmp/
+*.log
+*.inspect.ndjson
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
