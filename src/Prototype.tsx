@@ -1,26 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import "@fontsource-variable/noto-sans-sc";
 import { AnimatePresence, motion } from "motion/react";
-import { CameraIcon, ChatBubbleIcon, CheckCircledIcon, ChevronDownIcon, ChevronRightIcon, ClipboardIcon, CopyIcon, Cross2Icon, DotsHorizontalIcon, ExitIcon, GearIcon, MagnifyingGlassIcon, MobileIcon, PaperPlaneIcon, Pencil2Icon, PersonIcon, PlusIcon, QuestionMarkCircledIcon, SpeakerLoudIcon, StarIcon, TrashIcon } from "@radix-ui/react-icons";
-import { BottomSheet, KeyboardInput, KeyboardTextarea, MobileScroll, useKeyboard, useKeyboardInsets } from "./mobile";
+import { CameraIcon, ChatBubbleIcon, CheckCircledIcon, ChevronDownIcon, ChevronRightIcon, PaperPlaneIcon, PlusIcon, QuestionMarkCircledIcon, SpeakerLoudIcon } from "@radix-ui/react-icons";
+import { KeyboardInput, KeyboardTextarea, MobileScroll, useKeyboard, useKeyboardInsets } from "./mobile";
 import { runWorkflow, WorkflowClientError, type WorkflowContractError, type WorkflowDirection, type WorkflowProduct, type WorkflowResponse } from "./workflow-api";
 
-type Screen = "login" | "phone" | "home" | "chat" | "settings" | "profile";
+type Screen = "home" | "chat";
 type DemoPhase = "analyzing" | "followup" | "diagnosing" | "diagnosis" | "directionLoading" | "directions" | "productLoading" | "products";
 const prompts = ["仔猪拉稀两天了怎么办？", "猪咳嗽、喘气是什么原因？", "母猪突然不吃料"];
-const history = [{ group: "今天", items: ["仔猪拉稀两天了怎么办", "母猪突然不吃料"] }, { group: "近 7 天", items: ["育肥猪咳嗽、喘气", "新购仔猪怎样隔离"] }];
-const workflowResult = {
-  headline: "仔猪腹泻（两天、精神差）应优先考虑消化道应激或感染",
-  assessment: "可能与饲喂变化、环境应激或细菌性腹泻有关。建议结合体温、饮水、粪便性状及脱水情况综合判断。",
-  actions: [
-    { title: "稳住饮水与电解质", detail: "提供干净温水，少量多次饮用，防止继续脱水。" },
-    { title: "控制应激与环境", detail: "单独隔离观察，注意保温并保持圈舍干燥清洁。" },
-    { title: "观察并记录关键指标", detail: "记录饮水量、排便次数与性状、体温和精神状态。" },
-  ],
-  warning: "若出现完全不饮水、明显虚弱或便中带血，请尽快联系兽医。",
-  related: ["怎么判断脱水程度？", "口服补液盐怎么配？"],
-  followUp: { question: "仔猪现在还能正常喝水吗？", options: ["可以", "很少 / 不能"] },
-};
 const diagnosisResult = {
   title: "目前更符合【猪大肠杆菌性腹泻】",
   mechanism: "这类腹泻常与致病性大肠杆菌在仔猪肠道内增殖并产生肠毒素有关，可造成肠道分泌增加，出现水样腹泻和脱水。",
@@ -269,17 +256,9 @@ function AssistantAvatar() {
 export default function Prototype() {
   const keyboard = useKeyboard();
   const { bottomInset } = useKeyboardInsets();
-  const [screen, setScreen] = useState<Screen>("login");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [actionOpen, setActionOpen] = useState(false);
+  const [screen, setScreen] = useState<Screen>("home");
   const [selectedHistory, setSelectedHistory] = useState("仔猪拉稀两天了怎么办？");
   const [message, setMessage] = useState("");
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [agreed, setAgreed] = useState(true);
-  const [expanded, setExpanded] = useState(true);
-  const [helpful, setHelpful] = useState(false);
-  const [toast, setToast] = useState("");
   const [analysisStage, setAnalysisStage] = useState(3);
   const [demoPhase, setDemoPhase] = useState<DemoPhase>("diagnosis");
   const [followUpAnswer, setFollowUpAnswer] = useState("");
@@ -291,8 +270,7 @@ export default function Prototype() {
   const [liveMode, setLiveMode] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const go = (next: Screen) => { keyboard.hide(); setDrawerOpen(false); setScreen(next); };
-  const enter = () => agreed ? go("home") : setToast("请先阅读并同意用户协议与隐私政策");
+  const go = (next: Screen) => { keyboard.hide(); setScreen(next); };
   const send = (text = message) => { if (!text.trim()) return; setSelectedHistory(text); setMessage(""); setFollowUpAnswer(""); setAgeAnswer(""); setStoolAnswer(""); setAgeOther(""); setStoolOther(""); setSelectedDirection(""); setDemoPhase("analyzing"); setAnalysisStage(0); setLiveMode(true); keyboard.hide(); setScreen("chat"); };
 
   useEffect(() => {
@@ -343,29 +321,11 @@ export default function Prototype() {
     setScreen("chat");
   };
 
-  if (screen === "login" || screen === "phone") return (
-    <div className="prototype-shell auth-shell"><MobileScroll className="auth-scroll">
-      {screen === "login" ? <main className="auth-page">
-        <section className="brand-lockup"><div className="auth-avatar"><AssistantAvatar /></div><span>牧客智语</span></section>
-        <section className="auth-copy"><h1>欢迎回来</h1><p>登录后，继续你的养殖问答</p></section>
-        <div className="auth-actions"><button className="primary-button" onClick={enter}>微信一键登录</button><button className="secondary-button" onClick={() => go("phone")}><MobileIcon />使用手机号登录</button></div>
-        <label className="agreement-row"><input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} /><span>我已阅读并同意 <a>《用户协议》</a> 和 <a>《隐私政策》</a></span></label>
-        {toast && <div className="toast">{toast}</div>}
-      </main> : <main className="auth-page phone-auth">
-        <button className="back-button" onClick={() => go("login")} aria-label="返回">‹</button>
-        <section className="brand-lockup compact"><div className="auth-avatar"><AssistantAvatar /></div><span>牧客智语</span></section>
-        <section className="auth-copy"><h1>手机号登录</h1><p>未注册的手机号将自动创建账号</p></section>
-        <div className="phone-form"><label className="phone-field"><span>+86</span><KeyboardInput value={phone} onChange={e => setPhone(e.target.value)} placeholder="请输入手机号" inputMode="tel" /></label><label className="phone-field"><KeyboardInput value={code} onChange={e => setCode(e.target.value)} placeholder="请输入验证码" inputMode="numeric" /><button>获取验证码</button></label><button className="primary-button" onClick={enter} disabled={!phone || !code}>登录</button><button className="text-button" onClick={() => go("login")}>返回微信登录</button></div>
-        <p className="legal-note">登录即表示同意《用户协议》和《隐私政策》</p>
-      </main>}
-    </MobileScroll></div>
-  );
-
   return <div className="prototype-shell">
     <header className="topbar">
-      <button className="icon-button book-button" aria-label="打开问诊记录" onClick={() => { keyboard.hide(); setDrawerOpen(true); }}><ClipboardIcon /></button>
-      <div className="topbar-title"><strong>{screen === "settings" ? "设置" : screen === "profile" ? "个人信息" : "牧客智语"}</strong>{(screen === "home" || screen === "chat") && <span>AI 建议仅供参考</span>}</div>
-      {(screen === "home" || screen === "chat") ? <button className="icon-button accent" aria-label="新建对话" onClick={() => go("home")}><ChatBubbleIcon /><PlusIcon className="new-chat-plus" /></button> : <button className="icon-button close-page" aria-label="关闭" onClick={() => go("home")}><Cross2Icon /></button>}
+      <span className="topbar-spacer" aria-hidden="true" />
+      <div className="topbar-title"><strong>牧客智语</strong><span>AI 建议仅供参考</span></div>
+      <button className="icon-button accent" aria-label="新建对话" onClick={() => go("home")}><ChatBubbleIcon /><PlusIcon className="new-chat-plus" /></button>
     </header>
 
     <MobileScroll className="app-screen"><main className={`main-content ${screen}`}>
@@ -410,15 +370,9 @@ export default function Prototype() {
           </motion.article>}
         </AnimatePresence></>}
       </section>}
-      {screen === "settings" && <section className="simple-page"><div className="settings-group"><button><span>回答详细程度<small>标准</small></span><ChevronRightIcon /></button><button><span>字体大小<small>标准</small></span><ChevronRightIcon /></button></div><div className="settings-group"><button><span>隐私政策与用户协议</span><ChevronRightIcon /></button><button><span>意见反馈</span><ChevronRightIcon /></button><button><span>当前版本<small>1.0.0</small></span></button></div><button className="danger-row"><TrashIcon />清空历史记录</button></section>}
-      {screen === "profile" && <section className="simple-page profile-page"><div className="profile-avatar"><AssistantAvatar /><button><CameraIcon /></button></div><div className="settings-group"><button><span>昵称<small>王师傅</small></span><ChevronRightIcon /></button><button><span>手机号<small>138****2608</small></span><ChevronRightIcon /></button><button><span>微信绑定<small className="bound">已绑定</small></span><ChevronRightIcon /></button></div><button className="logout-row" onClick={() => go("login")}><ExitIcon />退出登录</button></section>}
     </main></MobileScroll>
 
     {(screen === "home" || (screen === "chat" && liveMode)) && <div className="composer-zone" style={{ bottom: bottomInset }}><div className="composer"><KeyboardTextarea value={message} onChange={e => setMessage(e.target.value)} placeholder={screen === "chat" ? "继续补充症状…" : "说说猪怎么了，或者你想了解什么"} rows={1} /><div className="composer-tools"><button onClick={() => fileInput.current?.click()}><PlusIcon /></button><button onClick={() => fileInput.current?.click()}><CameraIcon /></button><button onClick={() => setMessage("仔猪今天精神不太好")}><SpeakerLoudIcon /></button><span /><button className="send-button" onClick={() => send()} disabled={!message.trim()}><PaperPlaneIcon /></button></div><input ref={fileInput} className="visually-hidden" type="file" accept="image/*" /></div></div>}
 
-    <aside className={`history-drawer${drawerOpen ? " open" : ""}`}><div className="drawer-head"><strong>问诊记录</strong><button onClick={() => setDrawerOpen(false)}><Cross2Icon /></button></div><label className="history-search"><MagnifyingGlassIcon /><KeyboardInput placeholder="搜索历史对话" /></label><div className="history-list">{history.map(section => <section key={section.group}><h3>{section.group}</h3>{section.items.map(item => <div className="history-item" key={item}><button onClick={() => { setSelectedHistory(item); go("chat"); }}><ChatBubbleIcon /><span>{item}</span></button><button className="more-button" onClick={() => setActionOpen(true)}><DotsHorizontalIcon /></button></div>)}</section>)}</div><div className="drawer-footer"><button onClick={() => go("settings")}><GearIcon /><span>设置</span><ChevronRightIcon /></button><button onClick={() => go("profile")}><PersonIcon /><span><strong>王师傅</strong><small>查看个人信息</small></span><ChevronRightIcon /></button></div></aside>
-    {drawerOpen && <button className="drawer-scrim" onClick={() => setDrawerOpen(false)} />}
-    <BottomSheet open={actionOpen} onOpenChange={setActionOpen} title="对话操作"><div className="sheet-list"><button><Pencil2Icon />重命名</button><button><StarIcon />置顶</button><button className="danger"><TrashIcon />删除</button></div></BottomSheet>
-    {toast && <div className="toast app-toast">{toast}</div>}
   </div>;
 }

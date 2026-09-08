@@ -29,6 +29,14 @@ test("home exposes only the real workflow entry", () => {
   assert.doesNotMatch(source, /className="demo-entry"/);
 });
 
+test("launch version opens directly without account or history surfaces", () => {
+  assert.match(source, /useState<Screen>\("home"\)/);
+  assert.doesNotMatch(source, /screen === "login"/);
+  assert.doesNotMatch(source, /className="history-drawer/);
+  assert.doesNotMatch(source, /screen === "settings"/);
+  assert.match(source, /aria-label="新建对话"/);
+});
+
 test("direction cards avoid duplicate internal copy", () => {
   assert.doesNotMatch(source, /\{item\.target_problem &&/);
   assert.match(source, /选择一个方向，继续查看对应的改善方式。/);
