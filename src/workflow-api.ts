@@ -86,6 +86,20 @@ export type WorkflowResponse = {
 
 const proxyUrl = import.meta.env.VITE_LOCAL_PROXY_URL || 'http://127.0.0.1:3001';
 
+export type WorkflowContractError = { path: string; message: string };
+
+export class WorkflowClientError extends Error {
+  requestId?: string;
+  contractErrors: WorkflowContractError[];
+
+  constructor(message: string, requestId?: string, contractErrors: WorkflowContractError[] = []) {
+    super(message);
+    this.name = 'WorkflowClientError';
+    this.requestId = requestId;
+    this.contractErrors = contractErrors;
+  }
+}
+
 export async function runWorkflow(input: WorkflowRequest): Promise<WorkflowResponse> {
   const response = await fetch(`${proxyUrl}/api/workflow/run`, {
     method: 'POST',
@@ -93,6 +107,14 @@ export async function runWorkflow(input: WorkflowRequest): Promise<WorkflowRespo
     body: JSON.stringify(input),
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload?.error || '工作流暂时不可用');
+  if (!response.ok) {
+    const contractErrors = Array.isArray(payload?.contract_errors) ? payload.contract_errors : [];
+    const message = response.status === 504
+      ? '工作流响应超时，请稍后重新尝试'
+      : contractErrors.length
+        ? '工作流返回的数据格式需要调整'
+        : payload?.error || '工作流暂时不可用';
+    throw new WorkflowClientError(message, payload?.request_id, contractErrors);
+  }
   return payload as WorkflowResponse;
 }

@@ -3,7 +3,7 @@ import "@fontsource-variable/noto-sans-sc";
 import { AnimatePresence, motion } from "motion/react";
 import { CameraIcon, ChatBubbleIcon, CheckCircledIcon, ChevronDownIcon, ChevronRightIcon, ClipboardIcon, CopyIcon, Cross2Icon, DotsHorizontalIcon, ExitIcon, GearIcon, MagnifyingGlassIcon, MobileIcon, PaperPlaneIcon, Pencil2Icon, PersonIcon, PlusIcon, QuestionMarkCircledIcon, SpeakerLoudIcon, StarIcon, TrashIcon } from "@radix-ui/react-icons";
 import { BottomSheet, KeyboardInput, KeyboardTextarea, MobileScroll, useKeyboard, useKeyboardInsets } from "./mobile";
-import { runWorkflow, type WorkflowDirection, type WorkflowProduct, type WorkflowResponse } from "./workflow-api";
+import { runWorkflow, WorkflowClientError, type WorkflowContractError, type WorkflowDirection, type WorkflowProduct, type WorkflowResponse } from "./workflow-api";
 
 type Screen = "login" | "phone" | "home" | "chat" | "settings" | "profile";
 type DemoPhase = "analyzing" | "followup" | "diagnosing" | "diagnosis" | "directionLoading" | "directions" | "productLoading" | "products";
@@ -64,6 +64,7 @@ type PastTurn =
   | { id: string; kind: "diagnosis"; result: WorkflowResponse }
   | { id: string; kind: "message"; assistant: string; user: string };
 type LoadingMode = "analysis" | "directions" | "products";
+type LiveError = { message: string; requestId?: string; details: WorkflowContractError[] };
 
 function getCaseSummary(caseData: Record<string, any>) {
   const morbidity = caseData.morbidity || {};
@@ -142,7 +143,7 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
   const keyboard = useKeyboard();
   const [result, setResult] = useState<WorkflowResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<LiveError | null>(null);
   const [answers, setAnswers] = useState<Record<string, LiveAnswer>>({});
   const [pastTurns, setPastTurns] = useState<PastTurn[]>([]);
   const [loadingMode, setLoadingMode] = useState<LoadingMode>("analysis");
@@ -152,13 +153,16 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
 
   const execute = async (text: string, context = "", mode: LoadingMode = "analysis") => {
     lastRequest.current = { text, context, mode };
-    setLoadingMode(mode); setLoading(true); setError(""); keyboard.hide();
+    setLoadingMode(mode); setLoading(true); setError(null); keyboard.hide();
     try {
       const next = await runWorkflow({ user_input: text, conversation_context: context, conversation_id: conversationId.current, request_id: `req_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}` });
       if (next.response_type === "direction_selection") setDirectionResult(structuredClone(next));
       setResult(next); setAnswers({});
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "连接工作流失败，请稍后重试");
+      setResult(null);
+      setError(reason instanceof WorkflowClientError
+        ? { message: reason.message, requestId: reason.requestId, details: reason.contractErrors }
+        : { message: reason instanceof Error ? reason.message : "连接工作流失败，请稍后重试", details: [] });
     } finally { setLoading(false); }
   };
 
@@ -199,7 +203,7 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
     if (!directionResult) return;
     keyboard.hide();
     setResult(structuredClone(directionResult));
-    setError("");
+    setError(null);
   };
 
   const loadingCopy = loadingMode === "directions"
@@ -217,7 +221,7 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
       <div className="answered-items">{turn.questions.map(item => <div className="answered-item" key={item.id}><span>{item.question}</span><strong>{item.answer}</strong></div>)}</div>
     </motion.section> : turn.kind === "diagnosis" ? <motion.div className="past-rich-turn" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}><DiagnosisContent result={turn.result}/></motion.div> : <div className="past-turn" key={turn.id}><div className="past-assistant-message">{turn.assistant}</div><motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div></div>)}
     {loading && <div className={`diagnosing-card loading-${loadingMode}`}><span className="thinking-orb"/><div><strong>{loadingCopy.title}</strong><p>{loadingCopy.detail}</p></div></div>}
-    {error && <div className="live-error"><strong>暂时没有连接成功</strong><span>{error}</span><button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button></div>}
+    {error && <div className="live-error"><strong>{error.details.length ? "返回数据需要调整" : "暂时没有连接成功"}</strong><span>{error.message}</span>{error.details.length > 0 && <ul>{error.details.slice(0, 3).map((item, index) => <li key={`${item.path}-${index}`}><code>{item.path}</code>：{item.message}</li>)}</ul>}{error.requestId && <small>问题编号：{error.requestId}</small>}<button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button></div>}
     {!loading && result && <motion.article className="diagnosis-result live-result" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>
       <div className="result-kicker"><CheckCircledIcon />{result.response_type === "question" ? "需要补充信息" : result.response_type === "direction_selection" ? "解决方向已生成" : result.response_type === "product" ? "产品匹配已完成" : result.response_type === "management" ? "管理建议已生成" : "真实分析结果"}</div>
       {result.response_type === "question" && <div className="live-questions">

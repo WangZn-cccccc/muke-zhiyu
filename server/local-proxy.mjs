@@ -73,6 +73,7 @@ const server = http.createServer(async (req, res) => {
 
     const contractErrors = validateWorkflowResponse(payload);
     if (contractErrors.length) {
+      process.stderr.write(`Workflow contract rejected request_id=${requestId} response_type=${String(payload?.response_type || '')} errors=${JSON.stringify(contractErrors)}\n`);
       return json(res, 502, { error: 'Coze response violates workflow contract', request_id: requestId, contract_errors: contractErrors }, origin);
     }
     return json(res, 200, payload, origin);

@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const source = await readFile(new URL("../src/Prototype.tsx", import.meta.url), "utf8");
+const apiSource = await readFile(new URL("../src/workflow-api.ts", import.meta.url), "utf8");
+const proxySource = await readFile(new URL("../server/local-proxy.mjs", import.meta.url), "utf8");
 
 test("diagnosis exposes the real direction transition", () => {
   assert.match(source, /请根据当前诊断结果，给我治疗方案和解决方向/);
@@ -37,4 +39,13 @@ test("recommendation results can return to the preserved direction list", () => 
   assert.match(source, /setDirectionResult\(structuredClone\(next\)\)/);
   assert.match(source, /setResult\(structuredClone\(directionResult\)\)/);
   assert.equal(source.match(/onClick=\{returnToDirections\}/g)?.length, 3);
+});
+
+test("contract failures expose actionable details without repeating stale questions", () => {
+  assert.match(apiSource, /contract_errors/);
+  assert.match(apiSource, /WorkflowClientError/);
+  assert.match(proxySource, /Workflow contract rejected request_id=/);
+  assert.match(source, /setResult\(null\)/);
+  assert.match(source, /问题编号：\{error\.requestId\}/);
+  assert.match(source, /error\.details\.slice\(0, 3\)/);
 });
