@@ -21,3 +21,20 @@ test("live results render every terminal branch and verified channels", () => {
   assert.match(source, /isSafeHttpUrl\(product\.official_website\)/);
   assert.match(source, /rel="noopener noreferrer"/);
 });
+
+test("home exposes only the real workflow entry", () => {
+  assert.doesNotMatch(source, /体验完整问诊 Demo/);
+  assert.doesNotMatch(source, /className="demo-entry"/);
+});
+
+test("direction cards avoid duplicate internal copy", () => {
+  assert.doesNotMatch(source, /\{item\.target_problem &&/);
+  assert.match(source, /选择一个方向，继续查看对应的改善方式。/);
+  assert.doesNotMatch(source, /<p>\{result\.response \|\| "选择一个方向/);
+});
+
+test("recommendation results can return to the preserved direction list", () => {
+  assert.match(source, /setDirectionResult\(structuredClone\(next\)\)/);
+  assert.match(source, /setResult\(structuredClone\(directionResult\)\)/);
+  assert.equal(source.match(/onClick=\{returnToDirections\}/g)?.length, 3);
+});

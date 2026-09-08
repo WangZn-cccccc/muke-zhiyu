@@ -111,7 +111,6 @@ function DirectionCards({ directions, onChoose }: { directions: WorkflowDirectio
   return <div className="direction-list live-direction-list">{directions.map((item, index) => <button key={item.id} onClick={() => onChoose(item)}>
     <span className="direction-index">{index + 1}</span>
     <span className="direction-copy"><strong>{item.name}</strong>{item.description && <span className="direction-description">{item.description}</span>}
-      {item.target_problem && <small><b>针对问题</b><span>{item.target_problem}</span></small>}
       {item.mechanism && <small><b>作用方式</b><span>{item.mechanism}</span></small>}
       {item.expected_improvement && <small><b>预期改善</b><span>{item.expected_improvement}</span></small>}
     </span>
@@ -147,6 +146,7 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
   const [answers, setAnswers] = useState<Record<string, LiveAnswer>>({});
   const [pastTurns, setPastTurns] = useState<PastTurn[]>([]);
   const [loadingMode, setLoadingMode] = useState<LoadingMode>("analysis");
+  const [directionResult, setDirectionResult] = useState<WorkflowResponse | null>(null);
   const conversationId = useRef(`conv_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`);
   const lastRequest = useRef<{ text: string; context: string; mode: LoadingMode }>({ text: initialText, context: "", mode: "analysis" });
 
@@ -155,6 +155,7 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
     setLoadingMode(mode); setLoading(true); setError(""); keyboard.hide();
     try {
       const next = await runWorkflow({ user_input: text, conversation_context: context, conversation_id: conversationId.current, request_id: `req_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}` });
+      if (next.response_type === "direction_selection") setDirectionResult(structuredClone(next));
       setResult(next); setAnswers({});
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "连接工作流失败，请稍后重试");
@@ -194,6 +195,12 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
     setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: result.response, user: `我选择：${direction.name}` }]);
     void execute(direction.id, JSON.stringify(context), "products");
   };
+  const returnToDirections = () => {
+    if (!directionResult) return;
+    keyboard.hide();
+    setResult(structuredClone(directionResult));
+    setError("");
+  };
 
   const loadingCopy = loadingMode === "directions"
     ? { title: "正在整理适合当前病例的解决方向", detail: "正在核对方向规则、管理建议和适用边界…" }
@@ -224,12 +231,12 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
       {result.response_type === "diagnosis" && <DiagnosisContent result={result} onDirections={requestDirections}/>}
       {result.response_type === "direction_selection" && <section className="direction-section live-direction-section">
         {result.management_advice?.length > 0 && <div className="management-guidance compact-management"><h2>当前管理与排查建议</h2><span>先做好基础管理，再选择下一步改善方向</span><ul>{result.management_advice.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
-        <div className="section-intro"><span>下一步</span><h2>你想先了解哪个解决方向？</h2><p>{result.response || "选择一个方向，继续查看针对当前问题的改善方式。"}</p></div>
+        <div className="section-intro"><span>下一步</span><h2>你想先了解哪个解决方向？</h2><p>选择一个方向，继续查看对应的改善方式。</p></div>
         <DirectionCards directions={result.solution_directions || []} onChoose={choose}/>
       </section>}
-      {result.response_type === "product" && <section className="product-result live-products"><div className="section-intro"><span>匹配结果</span><h2>适合当前方向的产品</h2><p>{result.response}</p></div>{(result.recommended_products || []).map((item, index) => <ProductCard product={item} index={index} key={item.product_id}/>) }<div className="product-safety">产品信息用于辅助了解，不替代兽医诊断、处方及当前产品标签；使用前请核对适用对象、剂型、休药期和当地监管要求。</div></section>}
-      {result.response_type === "management" && <section className="management-guidance live-management"><h2>当前管理与排查建议</h2><span>{result.response}</span><ul>{(result.management_advice || []).map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
-      {result.response_type === "no_match" && <section className="no-match-card live-no-match"><strong>暂未匹配到可靠产品</strong><p>{result.response}</p><span>没有可靠结果时不会使用其他方向的产品补位，你可以返回重新选择方向或联系专业人员进一步处理。</span></section>}
+      {result.response_type === "product" && <section className="product-result live-products"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><div className="section-intro"><span>匹配结果</span><h2>适合当前方向的产品</h2><p>{result.response}</p></div>{(result.recommended_products || []).map((item, index) => <ProductCard product={item} index={index} key={item.product_id}/>) }<div className="product-safety">产品信息用于辅助了解，不替代兽医诊断、处方及当前产品标签；使用前请核对适用对象、剂型、休药期和当地监管要求。</div></section>}
+      {result.response_type === "management" && <section className="management-guidance live-management"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><h2>当前管理与排查建议</h2>{result.management_advice?.length === 0 && <span>{result.response}</span>}<ul>{(result.management_advice || []).map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
+      {result.response_type === "no_match" && <section className="no-match-card live-no-match"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><strong>暂未匹配到可靠产品</strong><p>{result.response}</p><span>没有可靠结果时不会使用其他方向的产品补位，你可以返回重新选择方向或联系专业人员进一步处理。</span></section>}
       {result.response_type === "emergency" && <section className="live-emergency"><QuestionMarkCircledIcon/><div><span>紧急风险提醒</span><h2>{result.emergency?.title || "发现需要立即处理的风险信号"}</h2><p>{result.response}</p><ol>{(result.emergency?.actions || []).map((item, index) => <li key={index}>{item}</li>)}</ol></div></section>}
       {result.response_type === "service_end" && <section className="live-terminal service-end"><strong>{result.service_end_reason === "testing_required" ? "建议进行专业检测" : result.service_end_reason === "vet_required" ? "建议联系专业兽医" : result.service_end_reason === "follow_up_limit_reached" ? "现有信息仍不足" : "建议联系在线客服"}</strong><span>{result.response}</span></section>}
       {result.response_type === "error" && <section className="live-terminal error"><strong>本次请求未完成</strong><span>{result.response || result.error?.message}</span>{result.error?.retryable && <button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button>}</section>}
@@ -345,7 +352,7 @@ export default function Prototype() {
     </header>
 
     <MobileScroll className="app-screen"><main className={`main-content ${screen}`}>
-      {screen === "home" && <><section className="welcome"><div className="avatar-ring"><AssistantAvatar /></div><h1>你好，我是牧客智语</h1><p>让每一次养殖判断，都更有依据</p></section><button className="demo-entry" onClick={startDemo}><span className="demo-entry-icon"><CheckCircledIcon /></span><span><strong>体验完整问诊 Demo</strong><small>固定案例 · 从症状追问到方案推荐</small></span><ChevronRightIcon /></button><section className="prompt-list">{prompts.map(p => <button key={p} className="prompt-row" onClick={() => send(p)}><QuestionMarkCircledIcon /><span>{p}</span><ChevronRightIcon /></button>)}</section></>}
+      {screen === "home" && <><section className="welcome"><div className="avatar-ring"><AssistantAvatar /></div><h1>你好，我是牧客智语</h1><p>让每一次养殖判断，都更有依据</p></section><section className="prompt-list">{prompts.map(p => <button key={p} className="prompt-row" onClick={() => send(p)}><QuestionMarkCircledIcon /><span>{p}</span><ChevronRightIcon /></button>)}</section></>}
       {screen === "chat" && <section className="conversation focus-conversation">
         {liveMode ? <LiveWorkflowPanel key={selectedHistory} initialText={selectedHistory} /> : <>
         <div className="demo-banner"><span>固定案例</span><strong>完整问诊交互 Demo</strong><button onClick={startDemo}>重新演示</button></div>

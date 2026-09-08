@@ -22,6 +22,9 @@
 - The selected chat-result direction is `docs/design-assets/chat-option-3-selected.png`: use a quiet, continuous editorial answer layout rather than a large enclosing result card.
 - Treat the diagnosis view as a data-driven UI template. Workflow output supplies the headline, assessment, action list, warning, related questions, and follow-up options; do not hard-code the template to one diagnosis or a fixed number of steps.
 - Interaction rhythm should use progressive workflow states, staggered section reveal, sequential step emphasis, a single restrained warning pulse, and a follow-up surface that rises into view.
+- The production-facing home screen exposes only the real workflow; do not restore a visible fixed-case Demo entry.
+- On direction selection screens, show each direction once in its card, omit the internal `target_problem` row, and do not repeat all direction details in introductory prose.
+- Product, management, and no-match results must let the user return to the preserved direction list without restarting diagnosis.
 
 In ChatGPT Work Mode, run `sites-preview start "$PWD"`, open `http://terminal.local:4173/` in the cloud browser, and verify the rendered app and its primary interactions. Keep that preview open and tell the user to inspect it in the cloud browser; do not present the local URL as a user-facing chat link. In Codex Desktop, run the local server yourself, open the preview in the in-app browser, and provide the clickable local URL. Do not deploy to Sites unless the user explicitly asks to share, publish, or deploy. Do not give the user server-start instructions when you can run it.
 
