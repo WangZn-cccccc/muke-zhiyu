@@ -8,6 +8,7 @@ const proxySource = await readFile(new URL("../server/workflow-proxy-handler.mjs
 const runtimeSource = await readFile(new URL("../src/mobile/MobileRuntime.tsx", import.meta.url), "utf8");
 const globalStyles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
 const prototypeStyles = await readFile(new URL("../src/prototype.css", import.meta.url), "utf8");
+const entryHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 test("diagnosis exposes the real direction transition", () => {
   assert.match(source, /请根据当前诊断结果，给我治疗方案和解决方向/);
@@ -76,4 +77,10 @@ test("production uses a responsive web shell while device chrome stays preview-o
   assert.match(globalStyles, /\.responsive-app-frame/);
   assert.match(prototypeStyles, /@media\(min-width:768px\)/);
   assert.match(prototypeStyles, /@media\(max-width:767px\)/);
+});
+
+test("public page uses the product name instead of prototype metadata", () => {
+  assert.match(entryHtml, /<title>牧客智语<\/title>/);
+  assert.match(entryHtml, /name="description" content="牧客智语/);
+  assert.doesNotMatch(entryHtml, /Mobile Prototype Boilerplate/);
 });
