@@ -91,4 +91,68 @@
   .responsive-runtime .conversation{gap:12px}
   .responsive-runtime .user-message{font-size:13px}
   .responsive-runtime .live-response{font-size:14px}
+  .responsive-runtime .service-banner{gap:7px;padding:8px 9px;border-radius:11px}
+  .responsive-runtime .service-banner strong{font-size:10.5px}
+  .responsive-runtime .service-banner small{font-size:8.5px}
+  .responsive-runtime .assistant-state{min-height:30px;gap:7px}
+  .responsive-runtime .assistant-mark{width:30px;height:30px;flex-basis:30px}
+  .responsive-runtime .assistant-mark svg{width:17px;height:17px}
+  .responsive-runtime .assistant-state strong{font-size:13px}
+  .responsive-runtime .status-pill{padding:4px 7px;font-size:9.5px}
+  .responsive-runtime .diagnosing-card,.responsive-runtime .transition-card{gap:10px;padding:14px;border-radius:13px}
+  .responsive-runtime .diagnosing-card strong,.responsive-runtime .transition-card strong{font-size:12px}
+  .responsive-runtime .diagnosing-card p,.responsive-runtime .transition-card p{font-size:10px}
+  .responsive-runtime .thinking-orb{width:26px;height:26px;flex-basis:26px;border-width:2px}
+  .responsive-runtime .live-result{gap:11px}
+  .responsive-runtime .result-kicker{margin-bottom:7px;font-size:10px}
+  .responsive-runtime .live-questions{gap:10px}
+  .responsive-runtime .live-questions>.question-block{padding:12px;border-radius:13px}
+  .responsive-runtime .question-block{padding-top:12px}
+  .responsive-runtime .question-block>strong{margin-bottom:8px;font-size:12px;line-height:1.55}
+  .responsive-runtime .question-block>div{gap:6px}
+  .responsive-runtime .question-block button{min-height:34px;padding:6px 9px;border-radius:9px;font-size:10.5px}
+  .responsive-runtime .question-progress{margin-top:13px;padding-top:11px}
+  .responsive-runtime .continue-button{height:38px!important;padding:0 11px!important;font-size:11px}
+  .responsive-runtime .answered-question-card{padding:12px;border-radius:13px}
+  .responsive-runtime .answered-card-head{padding-bottom:8px;font-size:11.5px}
+  .responsive-runtime .answered-items{gap:8px}
+  .responsive-runtime .answered-item{gap:10px;padding-top:8px}
+  .responsive-runtime .answered-item span,.responsive-runtime .answered-item strong{min-height:36px;font-size:11.5px}
+  .responsive-runtime .case-summary{margin-bottom:13px;padding:11px;border-radius:12px}
+  .responsive-runtime .case-summary-head{margin-bottom:9px}
+  .responsive-runtime .case-summary-head strong{font-size:12.5px}
+  .responsive-runtime .case-summary-head span{font-size:10px}
+  .responsive-runtime .case-summary-grid{gap:7px}
+  .responsive-runtime .case-summary-item{padding:8px 9px;border-radius:9px}
+  .responsive-runtime .case-summary-item span{font-size:9.5px}
+  .responsive-runtime .case-summary-item strong{font-size:11.5px}
+  .responsive-runtime .past-rich-turn .live-diagnosis{padding:14px;border-radius:14px}
+  .responsive-runtime .live-diagnosis>h2{margin-bottom:10px;font-size:16px}
+  .responsive-runtime .editorial-warning{padding:10px 11px;font-size:11px}
+  .responsive-runtime .primary-flow-button{height:42px;font-size:12px}
+  .responsive-runtime .management-guidance{padding:13px;border-radius:13px}
+  .responsive-runtime .management-guidance h2{font-size:13.5px}
+  .responsive-runtime .management-guidance>span{font-size:10px}
+  .responsive-runtime .management-guidance ul{gap:6px;margin-top:10px;font-size:11px}
+  .responsive-runtime .section-intro h2{font-size:15px}
+  .responsive-runtime .section-intro p{font-size:10.5px}
+  .responsive-runtime .direction-list{gap:8px;margin-top:12px}
+  .responsive-runtime .live-direction-list>button{grid-template-columns:25px minmax(0,1fr) 14px;padding:11px 10px;border-radius:12px}
+  .responsive-runtime .direction-index{width:24px;height:24px;font-size:10px}
+  .responsive-runtime .direction-list strong{font-size:12px}
+  .responsive-runtime .direction-description{font-size:10.5px}
+  .responsive-runtime .live-direction-list small{grid-template-columns:48px minmax(0,1fr);gap:5px;font-size:9.8px}
+  .responsive-runtime .live-direction-list small b{font-size:9.5px}
+  .responsive-runtime .live-products>.section-intro{margin-bottom:12px}
+  .responsive-runtime .product-card{padding:12px;border-radius:13px}
+  .responsive-runtime .product-card>div>strong{font-size:14px}
+  .responsive-runtime .product-heading small{font-size:9.8px}
+  .responsive-runtime .product-reason{grid-template-columns:52px 1fr;margin-top:10px;padding:8px}
+  .responsive-runtime .product-reason b{font-size:9px}
+  .responsive-runtime .product-reason span{font-size:10.5px}
+  .responsive-runtime .product-card summary{padding-top:9px;font-size:10px}
+  .responsive-runtime .product-card dl{gap:7px;margin-top:10px}
+  .responsive-runtime .product-card dd{font-size:10.5px}
+  .responsive-runtime .product-safety{padding:9px 10px;font-size:9px}
+  .responsive-runtime .live-error,.responsive-runtime .live-terminal,.responsive-runtime .live-emergency{padding:13px;border-radius:13px;font-size:12px}
 }

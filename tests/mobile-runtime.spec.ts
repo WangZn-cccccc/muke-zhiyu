@@ -105,7 +105,9 @@ test("keyboard and its attached footer dismiss on the same transition", async ({
 
   await input.click();
   await expect(keyboard).toHaveAttribute("data-visible", "true");
-  await drag(page, footer, 0, 120, 5);
+  await footer.dispatchEvent("pointerdown", { pointerId: 7, pointerType: "touch", clientY: 100 });
+  await footer.dispatchEvent("pointermove", { pointerId: 7, pointerType: "touch", clientY: 220 });
+  await footer.dispatchEvent("pointerup", { pointerId: 7, pointerType: "touch", clientY: 220 });
   await expect(keyboard).toHaveAttribute("data-visible", "false");
 
   await page.waitForTimeout(100);
