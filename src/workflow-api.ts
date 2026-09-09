@@ -84,7 +84,7 @@ export type WorkflowResponse = {
   [key: string]: unknown;
 };
 
-const proxyUrl = import.meta.env.VITE_LOCAL_PROXY_URL || 'http://127.0.0.1:3001';
+const proxyUrl = (import.meta.env.VITE_LOCAL_PROXY_URL || '').replace(/\/$/, '');
 
 export type WorkflowContractError = { path: string; message: string };
 

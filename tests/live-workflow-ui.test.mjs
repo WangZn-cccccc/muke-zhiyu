@@ -4,7 +4,7 @@ import test from "node:test";
 
 const source = await readFile(new URL("../src/Prototype.tsx", import.meta.url), "utf8");
 const apiSource = await readFile(new URL("../src/workflow-api.ts", import.meta.url), "utf8");
-const proxySource = await readFile(new URL("../server/local-proxy.mjs", import.meta.url), "utf8");
+const proxySource = await readFile(new URL("../server/workflow-proxy-handler.mjs", import.meta.url), "utf8");
 
 test("diagnosis exposes the real direction transition", () => {
   assert.match(source, /请根据当前诊断结果，给我治疗方案和解决方向/);

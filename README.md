@@ -53,10 +53,19 @@ npm run test:contract
 npm run build
 ```
 
+## Vercel 部署
+
+本仓库已同时支持本地代理和 Vercel 云函数。将 GitHub 仓库导入 Vercel 后，在项目的 Environment Variables 中配置：
+
+- `COZE_API_URL`：已部署的 Coze `/run` 地址。
+- `COZE_API_TOKEN`：Coze API Token，仅保存在 Vercel 服务端。
+- `COZE_TIMEOUT_MS`：可选，默认 `60000`。
+
+Build Command 与 Output Directory 已由 `vercel.json` 固定。前端在线上使用同域 `/api/workflow/run`，不需要配置 `VITE_LOCAL_PROXY_URL`；该变量只供本地开发连接 `http://127.0.0.1:3001` 使用。
+
 ## 当前边界
 
 - 当前前端通过本地代理调用 Coze 公网工作流。
 - 本仓库暂未包含 Coze 平台内部完整 Python 工作流代码。
 - `knowledge/` 保存的是可审阅的业务源资料；线上实际运行的 JSON 资产仍应从 Coze 导出后放入 `coze/`。
 - 不要提交 API Token、个人配置、依赖目录、构建产物和测试截图。
-
