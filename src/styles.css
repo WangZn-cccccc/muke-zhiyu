@@ -45,6 +45,45 @@ body {
   overflow: hidden;
 }
 
+.responsive-runtime {
+  width: 100%;
+  height: 100dvh;
+  min-height: 100%;
+  background: #eef3f5;
+}
+
+.responsive-app-frame {
+  position: relative;
+  width: min(100%, 840px);
+  height: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #f7f9fa;
+  box-shadow: 0 0 0 1px rgba(32, 43, 51, 0.05), 0 20px 60px rgba(32, 43, 51, 0.08);
+}
+
+.responsive-runtime .mobile-app-viewport {
+  position: absolute;
+  inset: 0;
+}
+
+.responsive-runtime .device-screen,
+.responsive-runtime .device-screen * {
+  cursor: auto !important;
+}
+
+@media (max-width: 767px) {
+  .responsive-runtime,
+  .responsive-app-frame {
+    background: #f7f9fa;
+  }
+
+  .responsive-app-frame {
+    width: 100%;
+    box-shadow: none;
+  }
+}
+
 button,
 input,
 textarea {

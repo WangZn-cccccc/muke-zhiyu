@@ -15,6 +15,7 @@ import { mobileAssets } from "./assets";
 import { useMobileDevice } from "./Device";
 
 type KeyboardContextValue = {
+  simulated: boolean;
   visible: boolean;
   height: number;
   fullHeight: number;
@@ -34,7 +35,7 @@ type KeyboardInputProps = InputHTMLAttributes<HTMLInputElement> & {
 
 const KeyboardContext = createContext<KeyboardContextValue | null>(null);
 
-export function KeyboardProvider({ children }: PropsWithChildren) {
+export function KeyboardProvider({ children, simulated = true }: PropsWithChildren<{ simulated?: boolean }>) {
   const { device } = useMobileDevice();
   const [visible, setVisible] = useState(false);
   const [dragOffset, setRawDragOffset] = useState(0);
@@ -47,6 +48,7 @@ export function KeyboardProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<KeyboardContextValue>(
     () => ({
+      simulated,
       visible,
       height: visible ? Math.max(0, fullHeight - dragOffset) : 0,
       fullHeight,
@@ -60,7 +62,7 @@ export function KeyboardProvider({ children }: PropsWithChildren) {
         setRawDragOffset(0);
         setDragging(false);
         setFocusedElement(element ?? null);
-        setVisible(true);
+        setVisible(simulated);
       },
       hide: () => {
         focusedElement?.blur();
@@ -69,7 +71,7 @@ export function KeyboardProvider({ children }: PropsWithChildren) {
         setVisible(false);
       },
     }),
-    [dragOffset, focusedElement, fullHeight, isDragging, visible],
+    [dragOffset, focusedElement, fullHeight, isDragging, simulated, visible],
   );
 
   return <KeyboardContext.Provider value={value}>{children}</KeyboardContext.Provider>;
@@ -88,6 +90,16 @@ export function useKeyboard() {
 export function useKeyboardInsets() {
   const keyboard = useKeyboard();
   const { device } = useMobileDevice();
+  if (!keyboard.simulated) {
+    return {
+      keyboardHeight: 0,
+      keyboardFullHeight: 0,
+      keyboardDragging: false,
+      bottomInset: 0,
+      availableHeight: typeof window === "undefined" ? device.geometry.screen.height : window.innerHeight,
+      isKeyboardVisible: false,
+    };
+  }
   const reservesAndroidNavigation = device.platform === "android" && !keyboard.visible;
 
   return {

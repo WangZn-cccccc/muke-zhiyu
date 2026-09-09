@@ -5,6 +5,9 @@ import test from "node:test";
 const source = await readFile(new URL("../src/Prototype.tsx", import.meta.url), "utf8");
 const apiSource = await readFile(new URL("../src/workflow-api.ts", import.meta.url), "utf8");
 const proxySource = await readFile(new URL("../server/workflow-proxy-handler.mjs", import.meta.url), "utf8");
+const runtimeSource = await readFile(new URL("../src/mobile/MobileRuntime.tsx", import.meta.url), "utf8");
+const globalStyles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+const prototypeStyles = await readFile(new URL("../src/prototype.css", import.meta.url), "utf8");
 
 test("diagnosis exposes the real direction transition", () => {
   assert.match(source, /请根据当前诊断结果，给我治疗方案和解决方向/);
@@ -63,4 +66,14 @@ test("contract failures expose actionable details without repeating stale questi
   assert.match(source, /setResult\(null\)/);
   assert.match(source, /问题编号：\{error\.requestId\}/);
   assert.match(source, /error\.details\.slice\(0, 3\)/);
+});
+
+test("production uses a responsive web shell while device chrome stays preview-only", () => {
+  assert.match(runtimeSource, /import\.meta\.env\.DEV/);
+  assert.match(runtimeSource, /devicePreview/);
+  assert.match(runtimeSource, /className="responsive-runtime"/);
+  assert.match(runtimeSource, /KeyboardProvider simulated=\{false\}/);
+  assert.match(globalStyles, /\.responsive-app-frame/);
+  assert.match(prototypeStyles, /@media\(min-width:768px\)/);
+  assert.match(prototypeStyles, /@media\(max-width:767px\)/);
 });

@@ -40,3 +40,35 @@
 .live-result-back{justify-self:start;margin:0 0 4px;padding:7px 2px;border:0;color:var(--primary);background:transparent;font-size:11px;font-weight:600}.management-guidance>.live-result-back{display:block;color:var(--primary);font-size:11px}.live-no-match>.live-result-back{margin-bottom:2px}
 .live-error ul{display:grid;gap:6px;margin:2px 0;padding:10px 12px 10px 28px;border-radius:10px;color:#6f443c;background:#fff4f1;font-size:10.5px;line-height:1.5}.live-error code{overflow-wrap:anywhere;color:#913f32;font-size:10px}.live-error small{color:#7b8a90;font-size:9.5px}
 .topbar-spacer{width:34px;height:34px}
+
+/* 正式网页运行时：手机全屏，桌面使用居中的聊天工作区。 */
+.responsive-runtime .topbar{top:0;height:72px;padding:0 max(18px,calc((100% - 720px)/2));background:rgba(247,249,250,.96);backdrop-filter:blur(16px)}
+.responsive-runtime .topbar:before{display:none}
+.responsive-runtime .main-content{width:min(100%,720px);margin:0 auto;padding-top:94px;padding-bottom:150px}
+.responsive-runtime .main-content.chat{padding-top:94px;padding-right:24px;padding-left:24px}
+.responsive-runtime .composer-zone{left:50%;width:min(100%,760px);padding-right:20px;padding-left:20px;transform:translateX(-50%);bottom:max(0px,env(safe-area-inset-bottom))!important}
+.responsive-runtime .composer{box-shadow:0 10px 34px rgba(39,74,91,.1)}
+.responsive-runtime .mobile-scroll{touch-action:pan-y;user-select:auto}
+.responsive-runtime .mobile-scroll[data-dragging="true"]{cursor:grabbing}
+.responsive-runtime .mobile-scrollbar{display:none}
+
+@media(min-width:768px){
+  .responsive-runtime .welcome{padding-top:96px}
+  .responsive-runtime .welcome h1{font-size:30px}
+  .responsive-runtime .welcome p{font-size:15px}
+  .responsive-runtime .prompt-row{min-height:64px;font-size:15px}
+  .responsive-runtime .conversation{gap:16px}
+  .responsive-runtime .live-response{font-size:16px}
+  .responsive-runtime .answered-item span{font-size:14px}
+  .responsive-runtime .answered-item strong{font-size:15px}
+  .responsive-runtime .live-direction-list small,.responsive-runtime .direction-description{font-size:12.5px}
+  .responsive-runtime .product-card>div>strong{font-size:18px}
+  .responsive-runtime .product-heading small{font-size:12px}
+  .responsive-runtime .product-reason span{font-size:13px}
+}
+
+@media(max-width:767px){
+  .responsive-runtime .topbar{height:64px;padding:0 14px;padding-top:env(safe-area-inset-top)}
+  .responsive-runtime .main-content,.responsive-runtime .main-content.chat{padding-top:82px;padding-right:18px;padding-left:18px}
+  .responsive-runtime .composer-zone{padding-right:12px;padding-bottom:max(10px,env(safe-area-inset-bottom));padding-left:12px}
+}

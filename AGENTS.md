@@ -26,6 +26,7 @@
 - On direction selection screens, show each direction once in its card, omit the internal `target_problem` row, and do not repeat all direction details in introductory prose.
 - Product, management, and no-match results must let the user return to the preserved direction list without restarting diagnosis.
 - The rapid-launch web version opens directly on the conversation-first home screen. Do not add login, account, history drawer, settings, or profile surfaces until a later authenticated product phase; keep only the new-conversation action.
+- Production uses one responsive URL: phones render the app full-screen, while desktop browsers render a centered web chat workspace. Device bezels, simulated status bars, keyboards, cursors, and the device picker are local preview tools only and must never appear in a production build. Local device preview remains available with `?devicePreview=1`.
 
 In ChatGPT Work Mode, run `sites-preview start "$PWD"`, open `http://terminal.local:4173/` in the cloud browser, and verify the rendered app and its primary interactions. Keep that preview open and tell the user to inspect it in the cloud browser; do not present the local URL as a user-facing chat link. In Codex Desktop, run the local server yourself, open the preview in the in-app browser, and provide the clickable local URL. Do not deploy to Sites unless the user explicitly asks to share, publish, or deploy. Do not give the user server-start instructions when you can run it.
 

@@ -5,17 +5,32 @@ import { PhoneFrame } from "./PhoneFrame";
 import { HomeIndicator, StatusBar } from "./components";
 
 export function MobileRuntime({ children }: PropsWithChildren) {
+  const previewMode = import.meta.env.DEV && typeof window !== "undefined" && (
+    new URLSearchParams(window.location.search).get("devicePreview") === "1" ||
+    window.location.pathname.endsWith("/tests/runtime-fixture.html")
+  );
+
   return (
     <MobileDeviceProvider>
-      <PhoneFrame>
-        <KeyboardProvider>
-          <KeyboardPreview />
-          <StatusBar />
-          <MobileAppViewport>{children}</MobileAppViewport>
-          <HomeIndicator />
-          <KeyboardDock />
-        </KeyboardProvider>
-      </PhoneFrame>
+      {previewMode ? (
+        <PhoneFrame>
+          <KeyboardProvider>
+            <KeyboardPreview />
+            <StatusBar />
+            <MobileAppViewport>{children}</MobileAppViewport>
+            <HomeIndicator />
+            <KeyboardDock />
+          </KeyboardProvider>
+        </PhoneFrame>
+      ) : (
+        <div className="responsive-runtime" data-testid="responsive-runtime">
+          <div className="responsive-app-frame">
+            <KeyboardProvider simulated={false}>
+              <MobileAppViewport>{children}</MobileAppViewport>
+            </KeyboardProvider>
+          </div>
+        </div>
+      )}
     </MobileDeviceProvider>
   );
 }
