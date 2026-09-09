@@ -26,3 +26,13 @@ test("local secrets and generated directories remain ignored", async () => {
     assert.ok(ignore.includes(requiredRule), `missing .gitignore rule: ${requiredRule}`);
   }
 });
+
+test("the frontend handoff guide documents secure Coze integration", async () => {
+  const guide = await read("docs/frontend-coze-handoff.md");
+
+  assert.match(guide, /src\/Prototype\.tsx/);
+  assert.match(guide, /\/api\/workflow\/run/);
+  assert.match(guide, /COZE_API_TOKEN/);
+  assert.match(guide, /Token.*不得进入 `src\/`/);
+  assert.match(guide, /workflow-response\.schema\.json/);
+});
