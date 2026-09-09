@@ -35,4 +35,8 @@ test("the frontend handoff guide documents secure Coze integration", async () =>
   assert.match(guide, /COZE_API_TOKEN/);
   assert.match(guide, /Token.*不得进入 `src\/`/);
   assert.match(guide, /workflow-response\.schema\.json/);
+  assert.match(guide, /React 19[\s\S]*React 18/);
+  assert.match(guide, /motion\/react[\s\S]*framer-motion/);
+  assert.match(guide, /DIR-0008[\s\S]*user_input/);
+  assert.match(guide, /result_mode.*只允许/);
 });
