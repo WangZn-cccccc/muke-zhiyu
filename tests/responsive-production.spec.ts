@@ -24,5 +24,8 @@ test("phone opens the same app full-screen without a simulated handset", async (
   const box = await frame.boundingBox();
   expect(box?.width).toBe(390);
   expect(box?.height).toBe(844);
-});
 
+  await expect(page.locator(".welcome h1")).toHaveCSS("font-size", "21px");
+  await expect(page.locator(".avatar-ring")).toHaveCSS("width", "72px");
+  await expect(page.locator(".prompt-row").first()).toHaveCSS("min-height", "54px");
+});

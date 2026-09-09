@@ -68,7 +68,27 @@
 }
 
 @media(max-width:767px){
-  .responsive-runtime .topbar{height:64px;padding:0 14px;padding-top:env(safe-area-inset-top)}
-  .responsive-runtime .main-content,.responsive-runtime .main-content.chat{padding-top:82px;padding-right:18px;padding-left:18px}
-  .responsive-runtime .composer-zone{padding-right:12px;padding-bottom:max(10px,env(safe-area-inset-bottom));padding-left:12px}
+  .responsive-runtime .topbar{height:58px;padding:env(safe-area-inset-top) 12px 0}
+  .responsive-runtime .topbar-title{gap:1px}
+  .responsive-runtime .topbar-title strong{font-size:15px}
+  .responsive-runtime .topbar-title span{font-size:9px}
+  .responsive-runtime .icon-button{width:42px;height:42px}
+  .responsive-runtime .icon-button svg{width:21px;height:21px}
+  .responsive-runtime .main-content,.responsive-runtime .main-content.chat{padding-top:72px;padding-right:16px;padding-bottom:130px;padding-left:16px}
+  .responsive-runtime .welcome{padding-top:52px}
+  .responsive-runtime .avatar-ring{width:72px;height:72px;margin-bottom:18px}
+  .responsive-runtime .assistant-avatar-crop{width:66px;height:66px}
+  .responsive-runtime .welcome h1{font-size:21px;line-height:1.28}
+  .responsive-runtime .welcome p{margin-top:9px;font-size:13px}
+  .responsive-runtime .prompt-list{margin-top:34px}
+  .responsive-runtime .prompt-row{min-height:54px;grid-template-columns:25px 1fr 18px;gap:8px;padding:6px 3px;font-size:13.5px}
+  .responsive-runtime .prompt-row>svg:first-child{width:17px;height:17px}
+  .responsive-runtime .composer-zone{padding:14px 10px max(9px,env(safe-area-inset-bottom))}
+  .responsive-runtime .composer{padding:10px 10px 8px;border-radius:17px}
+  .responsive-runtime .composer textarea{min-height:30px;font-size:13px}
+  .responsive-runtime .composer-tools{grid-template-columns:34px 34px 34px 1fr 40px;gap:6px}
+  .responsive-runtime .composer-tools .send-button{width:40px;height:40px}
+  .responsive-runtime .conversation{gap:12px}
+  .responsive-runtime .user-message{font-size:13px}
+  .responsive-runtime .live-response{font-size:14px}
 }
