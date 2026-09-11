@@ -28,6 +28,17 @@ test('production frontend defaults to the same-origin API', async () => {
   assert.doesNotMatch(source, /\|\| 'http:\/\/127\.0\.0\.1:3001'/);
 });
 
+test('portable production server serves the SPA and workflow API on the platform port', async () => {
+  const packageJson = JSON.parse(await read('package.json'));
+  const server = await read('server/app-server.mjs');
+
+  assert.match(packageJson.scripts.start, /server\/app-server\.mjs/);
+  assert.match(server, /process\.env\.PORT/);
+  assert.match(server, /'0\.0\.0\.0'/);
+  assert.match(server, /\/api\/workflow\/run/);
+  assert.match(server, /dist', 'client/);
+});
+
 test('cloud handler rejects missing configuration without exposing secrets', async () => {
   const handler = createWorkflowHandler({ env: {}, fetchImpl: async () => { throw new Error('must not call upstream'); } });
   const req = { method: 'POST', headers: {}, body: { user_input: '仔猪拉稀' } };
@@ -48,4 +59,3 @@ test('cloud handler validates required user input before calling Coze', async ()
   assert.equal(res.statusCode, 400);
   assert.deepEqual(JSON.parse(res.body), { error: 'user_input is required' });
 });
-
