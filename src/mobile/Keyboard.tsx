@@ -172,7 +172,11 @@ export function useKeyboardDismissDrag() {
         lastTime: performance.now(),
         velocityY: 0,
       };
-      event.currentTarget.setPointerCapture(event.pointerId);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Synthetic test events and cancelled native gestures may not own an active pointer.
+      }
     },
     onPointerMove: (event: ReactPointerEvent<HTMLElement>) => {
       const drag = dragRef.current;

@@ -19,6 +19,16 @@ test("the runtime agent guide points to the same repository workflow", async () 
   assert.match(guide, /After every change[\s\S]*add or update the relevant tests/);
 });
 
+test("protected runtime hashes are portable across Windows and Linux line endings", async () => {
+  const checkScript = await read("scripts/check-mobile-runtime.mjs");
+  const updateScript = await read("scripts/update-mobile-runtime-lock.mjs");
+
+  for (const script of [checkScript, updateScript]) {
+    assert.match(script, /replace\(\/\\r\\n\?\/g, "\\n"\)/);
+    assert.match(script, /binaryExtensions\.has/);
+  }
+});
+
 test("local secrets and generated directories remain ignored", async () => {
   const ignore = await read(".gitignore");
 
