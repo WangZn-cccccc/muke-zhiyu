@@ -236,7 +236,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   return <>
     <div className="service-banner"><span className="service-dot"/><div><strong>24小时养猪智能助手</strong><small>养殖问题随时问，提供更有依据的参考建议</small></div></div>
     <motion.div className="user-message" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>{initialText}</motion.div>
-    <div className="assistant-state"><span className="assistant-mark"><CheckCircledIcon /></span><strong>牧客智语</strong><span className={`status-pill${!loading ? " done" : ""}`}>{loading ? "正在分析" : "本轮完成"}</span></div>
+    <AssistantState loading={loading} />
     {pastTurns.map(turn => turn.kind === "questions" ? <motion.section className="answered-question-card" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
       <div className="answered-card-head"><CheckCircledIcon/><strong>本轮信息已补充</strong></div>
       <div className="answered-items">{turn.questions.map(item => <div className="answered-item" key={item.id}><span>{item.question}</span><strong>{item.answer}</strong></div>)}</div>
@@ -244,7 +244,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     {loading && <div className={`diagnosing-card loading-${loadingMode}`}><span className="thinking-orb"/><div><strong>{loadingCopy.title}</strong><p>{loadingCopy.detail}</p></div></div>}
     {error && <div className="live-error"><strong>{error.details.length ? "返回数据需要调整" : "暂时没有连接成功"}</strong><span>{error.message}</span>{error.details.length > 0 && <ul>{error.details.slice(0, 3).map((item, index) => <li key={`${item.path}-${index}`}><code>{item.path}</code>：{item.message}</li>)}</ul>}{error.requestId && <small>问题编号：{error.requestId}</small>}<button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button></div>}
     {!loading && result && <motion.article className="diagnosis-result live-result" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>
-      <div className="result-kicker"><CheckCircledIcon />{result.response_type === "question" ? "需要补充信息" : result.response_type === "direction_selection" ? "解决方向已生成" : result.response_type === "product" ? "产品匹配已完成" : result.response_type === "management" ? "管理建议已生成" : "真实分析结果"}</div>
+      <AssistantState completeLabel={result.response_type === "question" ? "等待补充" : "本轮完成"} />
       {result.response_type === "question" && <div className="live-questions">
         {questions.map((q, index) => <div className="question-block" key={q.id}><strong><i>{index + 1}</i>{q.question}</strong>
           {q.question_type === "single_choice" ? <div>{q.options.map(option => <button key={option.value} className={answers[q.id]?.value === option.value ? "selected" : ""} onClick={() => setAnswers(old => ({...old,[q.id]:{value:option.value,other:old[q.id]?.other || ""}}))}>{option.label}</button>)}{q.allow_other && !q.options.some(option => option.value === "other") && <button className={answers[q.id]?.value === "other" ? "selected" : ""} onClick={() => setAnswers(old => ({...old,[q.id]:{value:"other",other:old[q.id]?.other || ""}}))}>其他</button>}</div>
@@ -272,6 +272,17 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
 
 function AssistantAvatar() {
   return <span className="assistant-avatar-crop" aria-hidden="true"><img src="/assistant-pig-flat-source.png" alt="" draggable={false} /></span>;
+}
+
+function AssistantState({ loading = false, completeLabel = "本轮完成" }: { loading?: boolean; completeLabel?: string }) {
+  return <div className="assistant-state">
+    <span className="assistant-identity-avatar"><AssistantAvatar /></span>
+    <strong>牧客智语</strong>
+    <span className={`status-pill${loading ? "" : " done"}`}>
+      {!loading && <CheckCircledIcon />}
+      {loading ? "正在分析" : completeLabel}
+    </span>
+  </div>;
 }
 
 export default function Prototype() {
@@ -381,7 +392,7 @@ export default function Prototype() {
         {liveMode ? <LiveWorkflowPanel ref={liveWorkflowRef} initialText={selectedHistory} /> : <>
         <div className="demo-banner"><span>固定案例</span><strong>完整问诊交互 Demo</strong><button onClick={startDemo}>重新演示</button></div>
         <motion.div className="user-message" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>{selectedHistory}</motion.div>
-        <div className="assistant-state"><span className="assistant-mark"><CheckCircledIcon /></span><strong>牧客智语</strong><span className={`status-pill${analysisStage === 3 ? " done" : ""}`}>{analysisStage === 3 ? "分析完成" : ["正在整理症状", "正在分析原因", "正在生成建议"][analysisStage]}{analysisStage === 3 && <CheckCircledIcon />}</span></div>
+        <div className="assistant-state"><span className="assistant-identity-avatar"><AssistantAvatar /></span><strong>牧客智语</strong><span className={`status-pill${analysisStage === 3 ? " done" : ""}`}>{analysisStage === 3 && <CheckCircledIcon />}{analysisStage === 3 ? "分析完成" : ["正在整理症状", "正在分析原因", "正在生成建议"][analysisStage]}</span></div>
         <AnimatePresence mode="wait">
           {demoPhase === "analyzing" ? <motion.div key="analyzing" className="analysis-progress" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -8 }}>
             <div className="progress-track"><motion.span animate={{ width: `${(analysisStage + 1) * 33.34}%` }} transition={{ duration: .55 }} /></div>

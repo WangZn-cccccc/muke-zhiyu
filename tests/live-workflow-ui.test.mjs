@@ -84,3 +84,10 @@ test("public page uses the product name instead of prototype metadata", () => {
   assert.match(entryHtml, /name="description" content="牧客智语/);
   assert.doesNotMatch(entryHtml, /Mobile Prototype Boilerplate/);
 });
+
+test("assistant message headers use the pig identity and keep completion icon inside status", () => {
+  assert.match(source, /assistant-identity-avatar"><AssistantAvatar \/>/);
+  assert.match(source, /!loading && <CheckCircledIcon \/>/);
+  assert.doesNotMatch(source, /assistant-mark"><CheckCircledIcon/);
+  assert.doesNotMatch(source, /"真实分析结果"/);
+});
