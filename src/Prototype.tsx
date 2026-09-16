@@ -213,10 +213,13 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
       if (!value || loading || !result) return false;
 
       const context = structuredClone(result) as Record<string, any>;
+      const assistantText = result.response_type === "question"
+        ? questions.map(question => question.question).filter(Boolean).join("；")
+        : result.response;
       setPastTurns(old => [...old, {
         id: crypto.randomUUID(),
         kind: "message",
-        assistant: result.response_type === "question" ? "" : result.response,
+        assistant: assistantText,
         user: value,
       }]);
       void execute(value, JSON.stringify(context), "analysis");
@@ -237,7 +240,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     {pastTurns.map(turn => turn.kind === "questions" ? <motion.section className="answered-question-card" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
       <div className="answered-card-head"><CheckCircledIcon/><strong>本轮信息已补充</strong></div>
       <div className="answered-items">{turn.questions.map(item => <div className="answered-item" key={item.id}><span>{item.question}</span><strong>{item.answer}</strong></div>)}</div>
-    </motion.section> : turn.kind === "diagnosis" ? <motion.div className="past-rich-turn" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}><DiagnosisContent result={turn.result}/></motion.div> : <div className="past-turn" key={turn.id}><div className="past-assistant-message">{turn.assistant}</div><motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div></div>)}
+    </motion.section> : turn.kind === "diagnosis" ? <motion.div className="past-rich-turn" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}><DiagnosisContent result={turn.result}/></motion.div> : <div className="past-turn" key={turn.id}>{turn.assistant && <div className="past-assistant-message">{turn.assistant}</div>}<motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div></div>)}
     {loading && <div className={`diagnosing-card loading-${loadingMode}`}><span className="thinking-orb"/><div><strong>{loadingCopy.title}</strong><p>{loadingCopy.detail}</p></div></div>}
     {error && <div className="live-error"><strong>{error.details.length ? "返回数据需要调整" : "暂时没有连接成功"}</strong><span>{error.message}</span>{error.details.length > 0 && <ul>{error.details.slice(0, 3).map((item, index) => <li key={`${item.path}-${index}`}><code>{item.path}</code>：{item.message}</li>)}</ul>}{error.requestId && <small>问题编号：{error.requestId}</small>}<button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button></div>}
     {!loading && result && <motion.article className="diagnosis-result live-result" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>

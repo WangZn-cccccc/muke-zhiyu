@@ -18,6 +18,13 @@ test("自由输入复用会话编号并携带上一轮完整上下文", async ()
   assert.match(source, /conversation_context: context/);
 });
 
+test("自由输入历史显示真实追问且不渲染空白 AI 消息框", async () => {
+  const source = await readFile(sourceUrl, "utf8");
+  assert.match(source, /questions\.map\(question => question\.question\)/);
+  assert.match(source, /turn\.assistant && <div className="past-assistant-message">/);
+  assert.doesNotMatch(source, /assistant: result\.response_type === "question" \? ""/);
+});
+
 test("接口合同要求待答状态下的自然语言绕过新会话意图识别", async () => {
   const contract = await readFile(new URL("../contracts/workflow-api-contract.md", import.meta.url), "utf8");
   assert.match(contract, /pending_question_ids.*非空/);
