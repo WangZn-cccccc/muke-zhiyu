@@ -169,6 +169,8 @@ Coze 每次成功执行都必须返回同一顶层结构；不适用的数据使
 - `UI_REQUIRED`：选择“其他”时必须保存非空 `other_text`，不能只保存“其他”二字。
 - `ENGINEERING_REQUIRED`：`id` 在当前会话内稳定且唯一。
 - `ENGINEERING_REQUIRED`：`value` 为机器值，`label` 为展示文案。
+- `ENGINEERING_REQUIRED`：追问阶段允许用户不点击选项、直接在全局输入框使用自然语言回答；前端必须复用当前 `conversation_id`，并把上一轮完整响应作为 `conversation_context` 继续提交。
+- `ENGINEERING_REQUIRED`：当 `pending_question_ids` 非空时，工作流必须优先把 `user_input` 作为当前追问的回答交给节点2解析，不得先按一条全新咨询重新执行全局意图识别。用户同时补充其他新症状时，节点2应合并有效事实后继续原问诊链路。
 
 ## 8. case_data结构
 

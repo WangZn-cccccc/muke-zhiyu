@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import "@fontsource-variable/noto-sans-sc";
 import { AnimatePresence, motion } from "motion/react";
 import { CameraIcon, ChatBubbleIcon, CheckCircledIcon, ChevronDownIcon, ChevronRightIcon, PaperPlaneIcon, PlusIcon, QuestionMarkCircledIcon, SpeakerLoudIcon } from "@radix-ui/react-icons";
@@ -52,6 +52,7 @@ type PastTurn =
   | { id: string; kind: "message"; assistant: string; user: string };
 type LoadingMode = "analysis" | "directions" | "products";
 type LiveError = { message: string; requestId?: string; details: WorkflowContractError[] };
+type LiveWorkflowHandle = { submitText: (text: string) => boolean };
 
 function getCaseSummary(caseData: Record<string, any>) {
   const morbidity = caseData.morbidity || {};
@@ -139,7 +140,7 @@ function ProductCard({ product, index }: { product: WorkflowProduct; index: numb
   </article>;
 }
 
-function LiveWorkflowPanel({ initialText }: { initialText: string }) {
+const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }>(function LiveWorkflowPanel({ initialText }, ref) {
   const keyboard = useKeyboard();
   const [result, setResult] = useState<WorkflowResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -206,6 +207,23 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
     setError(null);
   };
 
+  useImperativeHandle(ref, () => ({
+    submitText: (text: string) => {
+      const value = text.trim();
+      if (!value || loading || !result) return false;
+
+      const context = structuredClone(result) as Record<string, any>;
+      setPastTurns(old => [...old, {
+        id: crypto.randomUUID(),
+        kind: "message",
+        assistant: result.response_type === "question" ? "" : result.response,
+        user: value,
+      }]);
+      void execute(value, JSON.stringify(context), "analysis");
+      return true;
+    },
+  }), [loading, result]);
+
   const loadingCopy = loadingMode === "directions"
     ? { title: "正在整理适合当前病例的解决方向", detail: "正在核对方向规则、管理建议和适用边界…" }
     : loadingMode === "products"
@@ -247,7 +265,7 @@ function LiveWorkflowPanel({ initialText }: { initialText: string }) {
       {(["knowledge","out_of_scope"] as string[]).includes(result.response_type) && <div className={`live-terminal ${result.response_type}`}><span>{result.response}</span></div>}
     </motion.article>}
   </>;
-}
+});
 
 function AssistantAvatar() {
   return <span className="assistant-avatar-crop" aria-hidden="true"><img src="/assistant-pig-flat-source.png" alt="" draggable={false} /></span>;
@@ -268,10 +286,36 @@ export default function Prototype() {
   const [stoolOther, setStoolOther] = useState("");
   const [selectedDirection, setSelectedDirection] = useState("");
   const [liveMode, setLiveMode] = useState(false);
+  const liveWorkflowRef = useRef<LiveWorkflowHandle>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const go = (next: Screen) => { keyboard.hide(); setScreen(next); };
-  const send = (text = message) => { if (!text.trim()) return; setSelectedHistory(text); setMessage(""); setFollowUpAnswer(""); setAgeAnswer(""); setStoolAnswer(""); setAgeOther(""); setStoolOther(""); setSelectedDirection(""); setDemoPhase("analyzing"); setAnalysisStage(0); setLiveMode(true); keyboard.hide(); setScreen("chat"); };
+  const send = (text = message) => {
+    const value = text.trim();
+    if (!value) return;
+
+    if (screen === "chat" && liveMode) {
+      if (liveWorkflowRef.current?.submitText(value)) {
+        setMessage("");
+        keyboard.hide();
+      }
+      return;
+    }
+
+    setSelectedHistory(value);
+    setMessage("");
+    setFollowUpAnswer("");
+    setAgeAnswer("");
+    setStoolAnswer("");
+    setAgeOther("");
+    setStoolOther("");
+    setSelectedDirection("");
+    setDemoPhase("analyzing");
+    setAnalysisStage(0);
+    setLiveMode(true);
+    keyboard.hide();
+    setScreen("chat");
+  };
 
   useEffect(() => {
     if (screen !== "chat" || demoPhase !== "analyzing" || analysisStage >= 3) return;
@@ -331,7 +375,7 @@ export default function Prototype() {
     <MobileScroll className="app-screen"><main className={`main-content ${screen}`}>
       {screen === "home" && <><section className="welcome"><div className="avatar-ring"><AssistantAvatar /></div><h1>你好，我是牧客智语</h1><p>让每一次养殖判断，都更有依据</p></section><section className="prompt-list">{prompts.map(p => <button key={p} className="prompt-row" onClick={() => send(p)}><QuestionMarkCircledIcon /><span>{p}</span><ChevronRightIcon /></button>)}</section></>}
       {screen === "chat" && <section className="conversation focus-conversation">
-        {liveMode ? <LiveWorkflowPanel key={selectedHistory} initialText={selectedHistory} /> : <>
+        {liveMode ? <LiveWorkflowPanel ref={liveWorkflowRef} initialText={selectedHistory} /> : <>
         <div className="demo-banner"><span>固定案例</span><strong>完整问诊交互 Demo</strong><button onClick={startDemo}>重新演示</button></div>
         <motion.div className="user-message" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>{selectedHistory}</motion.div>
         <div className="assistant-state"><span className="assistant-mark"><CheckCircledIcon /></span><strong>牧客智语</strong><span className={`status-pill${analysisStage === 3 ? " done" : ""}`}>{analysisStage === 3 ? "分析完成" : ["正在整理症状", "正在分析原因", "正在生成建议"][analysisStage]}{analysisStage === 3 && <CheckCircledIcon />}</span></div>
