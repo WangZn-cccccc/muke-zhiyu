@@ -7,7 +7,7 @@ const sourceUrl = new URL("../src/Prototype.tsx", import.meta.url);
 test("底部自由输入继续当前工作流而不是重新挂载问诊组件", async () => {
   const source = await readFile(sourceUrl, "utf8");
   assert.match(source, /liveWorkflowRef\.current\?\.submitText\(value\)/);
-  assert.match(source, /execute\(value, JSON\.stringify\(context\), "analysis"\)/);
+  assert.match(source, /execute\(value, JSON\.stringify\(context\), mode\)/);
   assert.doesNotMatch(source, /<LiveWorkflowPanel\s+key=\{selectedHistory\}/);
 });
 

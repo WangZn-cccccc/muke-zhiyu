@@ -100,3 +100,12 @@ test("confirmed case summary hides workflow state sentinels", () => {
   assert.match(source, /const deathCount = getDisplayCaseValue\(mortality\.death_count\)/);
   assert.match(source, /\.filter\(item => item\.value\)/);
 });
+
+test("loading UI is lightweight for unknown intent and specific for known workflow stages", () => {
+  assert.match(source, /"understanding" \| "followup" \| "directions" \| "products"/);
+  assert.match(source, /正在理解你的问题/);
+  assert.match(source, /正在整理补充信息/);
+  assert.match(source, /loadingMode === "understanding" \? <span className="typing-dots"/);
+  assert.match(source, /\{loading && <AssistantState loading \/>\}/);
+  assert.doesNotMatch(source, /<AssistantState loading=\{loading\} \/>/);
+});

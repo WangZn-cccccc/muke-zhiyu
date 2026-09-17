@@ -50,7 +50,7 @@ type PastTurn =
   | { id: string; kind: "questions"; questions: CompletedQuestion[] }
   | { id: string; kind: "diagnosis"; result: WorkflowResponse }
   | { id: string; kind: "message"; assistant: string; user: string };
-type LoadingMode = "analysis" | "directions" | "products";
+type LoadingMode = "understanding" | "followup" | "directions" | "products";
 type LiveError = { message: string; requestId?: string; details: WorkflowContractError[] };
 type LiveWorkflowHandle = { submitText: (text: string) => boolean };
 
@@ -172,12 +172,12 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   const [error, setError] = useState<LiveError | null>(null);
   const [answers, setAnswers] = useState<Record<string, LiveAnswer>>({});
   const [pastTurns, setPastTurns] = useState<PastTurn[]>([]);
-  const [loadingMode, setLoadingMode] = useState<LoadingMode>("analysis");
+  const [loadingMode, setLoadingMode] = useState<LoadingMode>("understanding");
   const [directionResult, setDirectionResult] = useState<WorkflowResponse | null>(null);
   const conversationId = useRef(`conv_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`);
-  const lastRequest = useRef<{ text: string; context: string; mode: LoadingMode }>({ text: initialText, context: "", mode: "analysis" });
+  const lastRequest = useRef<{ text: string; context: string; mode: LoadingMode }>({ text: initialText, context: "", mode: "understanding" });
 
-  const execute = async (text: string, context = "", mode: LoadingMode = "analysis") => {
+  const execute = async (text: string, context = "", mode: LoadingMode = "understanding") => {
     lastRequest.current = { text, context, mode };
     setLoadingMode(mode); setLoading(true); setError(null); keyboard.hide();
     try {
@@ -192,7 +192,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { void execute(initialText, "", "analysis"); }, [initialText]);
+  useEffect(() => { void execute(initialText, "", "understanding"); }, [initialText]);
 
   const questions = Array.isArray(result?.questions) ? result.questions : [];
   const ready = questions.length > 0 && questions.every(q => !q.required || Boolean(answers[q.id]?.value && (answers[q.id].value !== "other" || answers[q.id].other.trim())));
@@ -211,7 +211,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     });
     const requestReply = requestParts.join("；");
     setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "questions", questions: completedQuestions }]);
-    void execute(requestReply, JSON.stringify(context), "analysis");
+    void execute(requestReply, JSON.stringify(context), "followup");
   };
   const requestDirections = () => {
     if (!result) return;
@@ -247,7 +247,8 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
         assistant: assistantText,
         user: value,
       }]);
-      void execute(value, JSON.stringify(context), "analysis");
+      const mode: LoadingMode = result.response_type === "question" ? "followup" : "understanding";
+      void execute(value, JSON.stringify(context), mode);
       return true;
     },
   }), [loading, result]);
@@ -256,17 +257,19 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     ? { title: "正在整理适合当前病例的解决方向", detail: "正在核对方向规则、管理建议和适用边界…" }
     : loadingMode === "products"
       ? { title: "正在匹配适合当前方向的产品", detail: "正在根据所选方向筛选并核对真实产品资料…" }
-      : { title: "正在结合病例和知识库分析", detail: "真实工作流可能需要一点时间，请稍候…" };
+      : loadingMode === "followup"
+        ? { title: "正在整理补充信息", detail: "正在结合当前对话继续处理…" }
+        : { title: "正在理解你的问题", detail: "稍等一下，牧客智语正在回复…" };
 
   return <>
     <div className="service-banner"><span className="service-dot"/><div><strong>24小时养猪智能助手</strong><small>养殖问题随时问，提供更有依据的参考建议</small></div></div>
     <motion.div className="user-message" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>{initialText}</motion.div>
-    <AssistantState loading={loading} />
+    {loading && <AssistantState loading />}
     {pastTurns.map(turn => turn.kind === "questions" ? <motion.section className="answered-question-card" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
       <div className="answered-card-head"><CheckCircledIcon/><strong>本轮信息已补充</strong></div>
       <div className="answered-items">{turn.questions.map(item => <div className="answered-item" key={item.id}><span>{item.question}</span><strong>{item.answer}</strong></div>)}</div>
     </motion.section> : turn.kind === "diagnosis" ? <motion.div className="past-rich-turn" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}><DiagnosisContent result={turn.result}/></motion.div> : <div className="past-turn" key={turn.id}>{turn.assistant && <div className="past-assistant-message">{turn.assistant}</div>}<motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div></div>)}
-    {loading && <div className={`diagnosing-card loading-${loadingMode}`}><span className="thinking-orb"/><div><strong>{loadingCopy.title}</strong><p>{loadingCopy.detail}</p></div></div>}
+    {loading && <div className={`diagnosing-card loading-${loadingMode}`}>{loadingMode === "understanding" ? <span className="typing-dots" aria-hidden="true"><i/><i/><i/></span> : <span className="thinking-orb"/>}<div><strong>{loadingCopy.title}</strong><p>{loadingCopy.detail}</p></div></div>}
     {error && <div className="live-error"><strong>{error.details.length ? "返回数据需要调整" : "暂时没有连接成功"}</strong><span>{error.message}</span>{error.details.length > 0 && <ul>{error.details.slice(0, 3).map((item, index) => <li key={`${item.path}-${index}`}><code>{item.path}</code>：{item.message}</li>)}</ul>}{error.requestId && <small>问题编号：{error.requestId}</small>}<button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button></div>}
     {!loading && result && <motion.article className="diagnosis-result live-result" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>
       <AssistantState completeLabel={result.response_type === "question" ? "等待补充" : "本轮完成"} />
