@@ -222,7 +222,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   const choose = (direction: WorkflowDirection) => {
     if (!result) return;
     const context = { ...structuredClone(result), selected_direction: direction.id };
-    setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: result.response, user: `我选择：${direction.name}` }]);
+    setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: "", user: `我选择：${direction.name}` }]);
     void execute(direction.id, JSON.stringify(context), "products");
   };
   const returnToDirections = () => {

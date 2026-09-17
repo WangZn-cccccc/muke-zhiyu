@@ -109,3 +109,9 @@ test("loading UI is lightweight for unknown intent and specific for known workfl
   assert.match(source, /\{loading && <AssistantState loading \/>\}/);
   assert.doesNotMatch(source, /<AssistantState loading=\{loading\} \/>/);
 });
+
+test("selecting a direction does not replay the raw response in a white history card", () => {
+  assert.match(source, /kind: "message", assistant: "", user: `我选择：\$\{direction\.name\}`/);
+  assert.doesNotMatch(source, /kind: "message", assistant: result\.response, user: `我选择：/);
+  assert.match(source, /turn\.assistant && <div className="past-assistant-message">/);
+});
