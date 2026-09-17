@@ -91,3 +91,12 @@ test("assistant message headers use the pig identity and keep completion icon in
   assert.doesNotMatch(source, /assistant-mark"><CheckCircledIcon/);
   assert.doesNotMatch(source, /"真实分析结果"/);
 });
+
+test("confirmed case summary hides workflow state sentinels", () => {
+  for (const state of ["unavailable", "not_provided", "unknown", "unclear", "pending", "invalid"]) {
+    assert.ok(source.includes(`"${state}"`), `missing filtered state: ${state}`);
+  }
+  assert.match(source, /const affected = getDisplayCaseValue\(morbidity\.affected_count\)/);
+  assert.match(source, /const deathCount = getDisplayCaseValue\(mortality\.death_count\)/);
+  assert.match(source, /\.filter\(item => item\.value\)/);
+});

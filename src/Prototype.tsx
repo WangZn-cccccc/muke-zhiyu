@@ -54,28 +54,53 @@ type LoadingMode = "analysis" | "directions" | "products";
 type LiveError = { message: string; requestId?: string; details: WorkflowContractError[] };
 type LiveWorkflowHandle = { submitText: (text: string) => boolean };
 
+const INTERNAL_CASE_STATES = new Set([
+  "unavailable",
+  "not_provided",
+  "unknown",
+  "unclear",
+  "pending",
+  "invalid",
+  "not_available",
+  "n/a",
+  "null",
+  "undefined",
+  "用户不知道",
+  "暂未提供",
+  "无法确认",
+]);
+
+function getDisplayCaseValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map(getDisplayCaseValue).filter(Boolean).join("、");
+  if (typeof value === "object") return "";
+  const text = String(value).trim();
+  return text && !INTERNAL_CASE_STATES.has(text.toLocaleLowerCase()) ? text : "";
+}
+
 function getCaseSummary(caseData: Record<string, any>) {
   const morbidity = caseData.morbidity || {};
   const mortality = caseData.mortality || {};
-  const affected = morbidity.affected_count;
-  const total = morbidity.total_count;
+  const affected = getDisplayCaseValue(morbidity.affected_count);
+  const total = getDisplayCaseValue(morbidity.total_count);
   const morbidityText = affected && total ? `共${total}，发病${affected}` : affected ? `发病${affected}` : total ? `共${total}` : "";
-  const symptomText = Array.isArray(caseData.symptoms) ? caseData.symptoms.filter(Boolean).join("、") : caseData.symptoms;
-  const mortalityText = mortality.death_count ? `死亡${mortality.death_count}` : "";
+  const symptomText = getDisplayCaseValue(caseData.symptoms);
+  const deathCount = getDisplayCaseValue(mortality.death_count);
+  const mortalityText = deathCount ? `死亡${deathCount}` : "";
   return [
-    { label: "日龄", value: caseData.age },
-    { label: "生长阶段", value: caseData.stage },
+    { label: "日龄", value: getDisplayCaseValue(caseData.age) },
+    { label: "生长阶段", value: getDisplayCaseValue(caseData.stage) },
     { label: "主要症状", value: symptomText },
-    { label: "持续时间", value: caseData.duration },
-    { label: "粪便颜色", value: caseData.feces_color },
-    { label: "粪便性状", value: caseData.feces_shape_detail || caseData.feces_shape },
+    { label: "持续时间", value: getDisplayCaseValue(caseData.duration) },
+    { label: "粪便颜色", value: getDisplayCaseValue(caseData.feces_color) },
+    { label: "粪便性状", value: getDisplayCaseValue(caseData.feces_shape_detail) || getDisplayCaseValue(caseData.feces_shape) },
     { label: "发病范围", value: morbidityText },
     { label: "死亡情况", value: mortalityText },
-    { label: "严重程度", value: caseData.severity },
-    { label: "体温情况", value: caseData.temperature },
-    { label: "饮水状态", value: caseData.drinking_status },
-    { label: "采食状态", value: caseData.feeding_status },
-  ].filter(item => item.value && String(item.value).trim());
+    { label: "严重程度", value: getDisplayCaseValue(caseData.severity) },
+    { label: "体温情况", value: getDisplayCaseValue(caseData.temperature) },
+    { label: "饮水状态", value: getDisplayCaseValue(caseData.drinking_status) },
+    { label: "采食状态", value: getDisplayCaseValue(caseData.feeding_status) },
+  ].filter(item => item.value);
 }
 
 function isSafeHttpUrl(value: unknown): value is string {
