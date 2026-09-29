@@ -45,5 +45,23 @@ for (let i = 0; i < sceneHeads.length; i++) {
 }
 
 assert.equal((output.match(/^### 检索标签$/gm) ?? []).length, 206);
-assert.equal((output.match(/^### 重点鉴别边界$/gm) ?? []).length, 89);
-console.log('206 scenes, 412 identity-bearing blocks; every original section preserved; 89 targeted boundaries.');
+const coreNotes = (output.match(/^### 临床判断边界$/gm) ?? []).length;
+const diffNotes = (output.match(/^### 重点鉴别边界$/gm) ?? []).length;
+assert.equal(coreNotes, diffNotes);
+assert.ok(coreNotes >= 89);
+for (let i = 0; i < blocks.length; i += 2) {
+  const cid = blocks[i].match(/^- 候选ID：(C\d{3})$/m)?.[1];
+  const diff = blocks[i + 1];
+  if (cid === 'C042') assert.ok(diff.includes('Glaesserella parasuis'), 'C042 must be Glässer disease');
+  if (cid === 'C043') assert.ok(diff.includes('猪链球菌'), 'C043 must be Streptococcus suis');
+  if (cid === 'C044') {
+    assert.ok(diff.includes('弓形虫检测'), 'C044 must be toxoplasmosis');
+    assert.ok(!diff.includes('鼻腔或扁桃体检出'), 'C044 must not inherit Streptococcus advice');
+  }
+}
+const missing = blocks.filter((block, index) => index % 2 === 0 && !block.includes('### 临床判断边界'));
+const missingPathogen = missing.filter(block => /^- 类型：病原性疾病$/m.test(block)).length;
+console.log(`206 scenes, 412 identity-bearing blocks; every original section preserved; ${diffNotes} targeted boundaries; ${missingPathogen} pathogen scenes without an added boundary.`);
+if (missingPathogen) {
+  console.log(missing.filter(block => /^- 类型：病原性疾病$/m.test(block)).map(block => block.split('\n')[0]).join('\n'));
+}
