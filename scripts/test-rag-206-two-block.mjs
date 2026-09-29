@@ -11,6 +11,11 @@ const blocks = output.trim().split(/\n---\n/).map(block => block.trim());
 assert.equal(sceneHeads.length, 206);
 assert.equal(blocks.length, 412);
 const sectionHeadings = ['基本信息', '检索标签', '典型表现', '关键观察项', '鉴别要点（含差异观察项）', '解决方向', '发病或形成原理'];
+const markSharedObservations = table => table
+  .replace('| 差异观察项 |', '| 观察项（差异或共同） |')
+  .replace(/([^；|\n]+?)：本候选为“([^”]+)”，([^；|\n]+?)为“\2”/g,
+    (_, label, value) => `共同点：${label.trim()}双方均为“${value}”，不能据此区分`)
+  .replace(/\|\s*共同点：/g, '| 共同点：');
 
 for (let i = 0; i < sceneHeads.length; i++) {
   const start = sceneHeads[i].index;
@@ -39,12 +44,14 @@ for (let i = 0; i < sceneHeads.length; i++) {
     if (j === 0) {
       for (const line of original.split('\n')) assert.ok(target.includes(line), `${sceneId}: lost ${line}`);
     } else {
-      assert.ok(target.includes(`### ${matches[j][1]}\n${original}`), `${sceneId}: lost ${matches[j][1]}`);
+      const expected = j === 4 ? markSharedObservations(original) : original;
+      assert.ok(target.includes(`### ${matches[j][1]}\n${expected}`), `${sceneId}: lost ${matches[j][1]}`);
     }
   }
 }
 
 assert.equal((output.match(/^### 检索标签$/gm) ?? []).length, 206);
+assert.ok(!/本候选为“([^”]+)”，[^；\n]+为“\1”/.test(output), 'Shared observations must be labeled, not left as differential evidence');
 const coreNotes = (output.match(/^### 临床判断边界$/gm) ?? []).length;
 const diffNotes = (output.match(/^### 重点鉴别边界$/gm) ?? []).length;
 assert.equal(coreNotes, diffNotes);
@@ -68,6 +75,21 @@ assert.ok(mixedCore?.includes('不能预设为无接触传播'));
 assert.ok(mixedDiff?.includes('不能把“混合感染”当成未经取证的兜底确诊'));
 assert.ok(!mixedCore?.includes('传播速度：通常不按接触传播规律扩散'));
 assert.ok(!mixedDiff?.includes('本候选为“通常不按接触传播规律扩散”'));
+const coreFor = sceneId => blocks.find(block => block.includes(`- 场景ID：${sceneId}`) && block.includes('｜核心块'));
+const diffFor = sceneId => blocks.find(block => block.includes(`- 场景ID：${sceneId}`) && block.includes('｜鉴别块'));
+assert.ok(coreFor('P02_C004')?.includes('不能仅凭呕吐优先锁定本候选'));
+assert.ok(coreFor('P06_C043')?.includes('不是原发性肺炎的典型首选解释'));
+assert.ok(coreFor('P13_C010')?.includes('胎儿心肌病变'));
+assert.ok(diffFor('P13_C010')?.includes('不能仅凭流产或死胎外观区分'));
+assert.ok(diffFor('P13_C010')?.includes('排查常见繁殖病因并核查胎儿病变'));
+assert.ok(!diffFor('P13_C010')?.includes('优先推荐 | 免疫预防'));
+assert.ok(diffFor('P01_C010')?.includes('病毒在免疫相关细胞和组织中复制'));
+assert.ok(diffFor('P01_C020')?.includes('共同点：'));
+assert.ok(diffFor('P01_C020')?.includes('不能据此区分'));
+for (const cid of ['C024', 'C025', 'C026', 'C100', 'C103']) {
+  const pair = blocks.filter(block => block.includes(`- 候选ID：${cid}`));
+  assert.ok(pair.length >= 2 && pair.every(block => block.includes('不是已经确认的具体疾病') || block.includes('不能把本方向直接当作病原级确诊')), `${cid} must remain a direction`);
+}
 console.log(`206 scenes, 412 identity-bearing blocks; every original section preserved; ${diffNotes} targeted boundaries; ${missingPathogen} pathogen scenes without an added boundary.`);
 if (missingPathogen) {
   console.log(missing.filter(block => /^- 类型：病原性疾病$/m.test(block)).map(block => block.split('\n')[0]).join('\n'));

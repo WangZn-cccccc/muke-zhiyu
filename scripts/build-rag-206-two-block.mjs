@@ -217,6 +217,11 @@ if (headers.length !== 206) throw new Error(`Expected 206 scenes, got ${headers.
 const blocks = [];
 const sectionsToCore = ['基本信息', '检索标签', '典型表现', '关键观察项'];
 const sectionsToDiff = ['鉴别要点（含差异观察项）', '解决方向', '发病或形成原理'];
+const markSharedObservations = table => table
+  .replace('| 差异观察项 |', '| 观察项（差异或共同） |')
+  .replace(/([^；|\n]+?)：本候选为“([^”]+)”，([^；|\n]+?)为“\2”/g,
+    (_, label, value) => `共同点：${label.trim()}双方均为“${value}”，不能据此区分`)
+  .replace(/\|\s*共同点：/g, '| 共同点：');
 for (let i = 0; i < headers.length; i++) {
   const start = headers[i].index;
   const end = i + 1 < headers.length ? headers[i + 1].index : source.length;
@@ -241,11 +246,16 @@ for (let i = 0; i < headers.length; i++) {
   const cid = basic.match(/^- 候选ID：(C\d{3})$/m)?.[1];
   const candidateName = basic.match(/^- 候选名称：(.+)$/m)?.[1];
   const problem = basic.match(/^- 所属问题：(.+)$/m)?.[1];
+  const type = basic.match(/^- 类型：(.+)$/m)?.[1] ?? '';
   if (!sceneId || !cid || !candidateName || !problem) throw new Error(`${sceneNumber} has incomplete identity`);
   if (!head.endsWith(`${problem}—${candidateName}`)) throw new Error(`${sceneNumber} heading/identity conflict`);
   const identity = `- 场景ID：${sceneId}\n- 所属问题：${problem}\n- 候选ID：${cid}\n- 候选名称：${candidateName}`;
   const extraBasic = basic.split('\n').filter(line => !/^- (场景ID|所属问题|候选ID|候选名称)：/.test(line)).join('\n').trim();
-  const note = notes[cid];
+  const directionOnly = /候选方向|疾病方向|判断流程问题/.test(type);
+  const note = notes[cid] ?? (directionOnly ? {
+    core: '这是继续分流或复盘的方向，不是已经确认的具体疾病；应根据伴随症状转入相应问题模块继续鉴别。',
+    diff: '【候选层级边界】只用于确定下一步追问、转场景或复核原判断；不能把本方向直接当作病原级确诊或替代具体疾病证据。',
+  } : undefined);
   const core = [
     `${head}｜核心块`, identity,
     `### 基本信息\n${extraBasic}`,
@@ -254,8 +264,8 @@ for (let i = 0; i < headers.length; i++) {
   ].filter(Boolean).join('\n\n');
   const diff = [
     `${head}｜鉴别块`, identity,
-    `### 鉴别要点（含差异观察项）\n${byHeading.get('鉴别要点（含差异观察项）')}`,
-    note ? `### 重点鉴别边界\n${note.diff}\n\n资料依据：${note.source}` : '',
+    `### 鉴别要点（含差异观察项）\n${markSharedObservations(byHeading.get('鉴别要点（含差异观察项）'))}`,
+    note ? `### 重点鉴别边界\n${note.diff}${note.source ? `\n\n资料依据：${note.source}` : ''}` : '',
     `### 解决方向\n${byHeading.get('解决方向')}`,
     `### 发病或形成原理\n${byHeading.get('发病或形成原理')}`,
   ].filter(Boolean).join('\n\n');
@@ -265,5 +275,5 @@ for (let i = 0; i < headers.length; i++) {
 if (blocks.length !== 412) throw new Error(`Expected 412 blocks, got ${blocks.length}`);
 const result = `${blocks.join('\n\n---\n\n')}\n`;
 writeFileSync(outputPath, result, 'utf8');
-const noteCount = headers.reduce((n, h, i) => n + Number(Boolean(notes[source.slice(h.index, i + 1 < headers.length ? headers[i + 1].index : source.length).match(/^- 候选ID：(C\d{3})$/m)?.[1]])), 0);
+const noteCount = blocks.filter((block, index) => index % 2 === 0 && block.includes('### 临床判断边界')).length;
 console.log(JSON.stringify({ scenes: headers.length, blocks: blocks.length, annotatedScenes: noteCount, outputPath }, null, 2));
