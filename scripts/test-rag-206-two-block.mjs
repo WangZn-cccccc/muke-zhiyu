@@ -61,6 +61,13 @@ for (let i = 0; i < blocks.length; i += 2) {
 }
 const missing = blocks.filter((block, index) => index % 2 === 0 && !block.includes('### 临床判断边界'));
 const missingPathogen = missing.filter(block => /^- 类型：病原性疾病$/m.test(block)).length;
+assert.equal(missingPathogen, 0, 'Every pathogen-coded scene needs a clinical boundary');
+const mixedCore = blocks.find(block => block.startsWith('## P01.13 ') && block.includes('｜核心块'));
+const mixedDiff = blocks.find(block => block.startsWith('## P01.13 ') && block.includes('｜鉴别块'));
+assert.ok(mixedCore?.includes('不能预设为无接触传播'));
+assert.ok(mixedDiff?.includes('不能把“混合感染”当成未经取证的兜底确诊'));
+assert.ok(!mixedCore?.includes('传播速度：通常不按接触传播规律扩散'));
+assert.ok(!mixedDiff?.includes('本候选为“通常不按接触传播规律扩散”'));
 console.log(`206 scenes, 412 identity-bearing blocks; every original section preserved; ${diffNotes} targeted boundaries; ${missingPathogen} pathogen scenes without an added boundary.`);
 if (missingPathogen) {
   console.log(missing.filter(block => /^- 类型：病原性疾病$/m.test(block)).map(block => block.split('\n')[0]).join('\n'));
