@@ -71,6 +71,9 @@ export type WorkflowResponse = {
   response: string;
   conversation_id: string;
   case_data: Record<string, unknown>;
+  follow_up_round: number;
+  pending_question_ids: string[];
+  question_answers: Record<string, { status: string; value?: string; other_text?: string | null }>;
   questions: WorkflowQuestion[];
   diagnosis: WorkflowDiagnosis | null;
   solution_directions: WorkflowDirection[];

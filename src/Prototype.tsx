@@ -121,6 +121,30 @@ function deduplicateDirections(directions: WorkflowDirection[]) {
   });
 }
 
+function normalizeComparableText(value: string) {
+  return value.replace(/[\s，。！？；：、,.!?;:'"“”‘’（）()【】\[\]]+/g, "").toLocaleLowerCase("zh-CN");
+}
+
+function getAdditionalManagementAdvice(result: WorkflowResponse) {
+  const responseText = normalizeComparableText(result.response || "");
+  const seen = new Set<string>();
+  return (Array.isArray(result.management_advice) ? result.management_advice : [])
+    .map(item => String(item || "").trim())
+    .filter(Boolean)
+    .filter(item => {
+      const comparable = normalizeComparableText(item);
+      if (!comparable || seen.has(comparable)) return false;
+      seen.add(comparable);
+      return !responseText || (!responseText.includes(comparable) && !comparable.includes(responseText));
+    });
+}
+
+function ManagementAdviceBlock({ result }: { result: WorkflowResponse }) {
+  const advice = getAdditionalManagementAdvice(result);
+  if (advice.length === 0) return null;
+  return <div className="management-guidance compact-management"><h2>当前管理与排查建议</h2><ul>{advice.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></div>;
+}
+
 function DiagnosisContent({ result, onDirections }: { result: WorkflowResponse; onDirections?: () => void }) {
   if (!result.diagnosis) return null;
   const summary = getCaseSummary(result.case_data || {});
@@ -151,8 +175,8 @@ function ProductCard({ product, index }: { product: WorkflowProduct; index: numb
   const officialWebsite = isSafeHttpUrl(product.official_website) ? product.official_website : null;
   const purchaseUrl = isSafeHttpUrl(product.purchase_url) ? product.purchase_url : null;
   return <article className="product-card live-product-card">
-    <div className="product-heading"><span className="product-rank">{index === 0 ? "首选" : `推荐${index + 1}`}</span><strong>{product.product_name}</strong><small>{product.manufacturer || "厂家信息暂缺"}{product.product_category ? ` · ${product.product_category}` : ""}</small></div>
-    <div className="product-reason"><b>推荐理由</b><span>{product.recommendation_reason}</span></div>
+    <div className="product-heading"><span className="product-rank">{`产品${index + 1}`}</span><strong>{product.product_name}</strong><small>{product.manufacturer || "厂家信息暂缺"}{product.product_category ? ` · ${product.product_category}` : ""}</small></div>
+    <div className="product-reason"><b>关联说明</b><span>{product.recommendation_reason}</span></div>
     <details><summary>查看完整产品资料 <ChevronDownIcon/></summary>
       <dl>
         {features.length > 0 && <div><dt>产品特点</dt><dd>{features.join("；")}</dd></div>}
@@ -182,6 +206,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     setLoadingMode(mode); setLoading(true); setError(null); keyboard.hide();
     try {
       const next = await runWorkflow({ user_input: text, conversation_context: context, conversation_id: conversationId.current, request_id: `req_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}` });
+      if (next.conversation_id) conversationId.current = next.conversation_id;
       if (next.response_type === "direction_selection") setDirectionResult(structuredClone(next));
       setResult(next); setAnswers({});
     } catch (reason) {
@@ -221,7 +246,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   };
   const choose = (direction: WorkflowDirection) => {
     if (!result) return;
-    const context = { ...structuredClone(result), selected_direction: direction.id };
+    const context = structuredClone(result);
     setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: "", user: `我选择：${direction.name}` }]);
     void execute(direction.id, JSON.stringify(context), "products");
   };
@@ -256,7 +281,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   const loadingCopy = loadingMode === "directions"
     ? { title: "正在整理适合当前病例的解决方向", detail: "正在核对方向规则、管理建议和适用边界…" }
     : loadingMode === "products"
-      ? { title: "正在匹配适合当前方向的产品", detail: "正在根据所选方向筛选并核对真实产品资料…" }
+      ? { title: "正在查询相关产品资料", detail: "正在根据所选方向筛选并核对真实产品资料…" }
       : loadingMode === "followup"
         ? { title: "正在整理补充信息", detail: "正在结合当前对话继续处理…" }
         : { title: "正在理解你的问题", detail: "稍等一下，牧客智语正在回复…" };
@@ -287,9 +312,9 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
         <div className="section-intro"><span>下一步</span><h2>你想先了解哪个解决方向？</h2><p>选择一个方向，继续查看对应的改善方式。</p></div>
         <DirectionCards directions={result.solution_directions || []} onChoose={choose}/>
       </section>}
-      {result.response_type === "product" && <section className="product-result live-products"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><div className="section-intro"><span>匹配结果</span><h2>适合当前方向的产品</h2><p>{result.response}</p></div>{(result.recommended_products || []).map((item, index) => <ProductCard product={item} index={index} key={item.product_id}/>) }<div className="product-safety">产品信息用于辅助了解，不替代兽医诊断、处方及当前产品标签；使用前请核对适用对象、剂型、休药期和当地监管要求。</div></section>}
+      {result.response_type === "product" && <section className="product-result live-products"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><div className="section-intro"><span>查询结果</span><h2>相关产品供了解</h2><p>{result.response}</p></div>{(result.recommended_products || []).map((item, index) => <ProductCard product={item} index={index} key={item.product_id}/>) }<ManagementAdviceBlock result={result}/><div className="product-safety">以上相关产品信息仅供了解，不代表已确认适用于当前情况，也不替代兽医诊断、处方及当前产品标签；使用前请核对适用对象、剂型、休药期和当地监管要求。</div></section>}
       {result.response_type === "management" && <section className="management-guidance live-management"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><h2>当前管理与排查建议</h2>{result.management_advice?.length === 0 && <span>{result.response}</span>}<ul>{(result.management_advice || []).map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
-      {result.response_type === "no_match" && <section className="no-match-card live-no-match"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><strong>暂未匹配到可靠产品</strong><p>{result.response}</p><span>没有可靠结果时不会使用其他方向的产品补位，你可以返回重新选择方向或联系专业人员进一步处理。</span></section>}
+      {result.response_type === "no_match" && <section className="no-match-card live-no-match"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><strong>暂未匹配到可靠产品</strong><p>{result.response}</p><ManagementAdviceBlock result={result}/><span>没有可靠结果时不会使用其他方向的产品补位，你可以返回重新选择方向或联系专业人员进一步处理。</span></section>}
       {result.response_type === "emergency" && <section className="live-emergency"><QuestionMarkCircledIcon/><div><span>紧急风险提醒</span><h2>{result.emergency?.title || "发现需要立即处理的风险信号"}</h2><p>{result.response}</p><ol>{(result.emergency?.actions || []).map((item, index) => <li key={index}>{item}</li>)}</ol></div></section>}
       {result.response_type === "service_end" && <section className="live-terminal service-end"><strong>{result.service_end_reason === "testing_required" ? "建议进行专业检测" : result.service_end_reason === "vet_required" ? "建议联系专业兽医" : result.service_end_reason === "follow_up_limit_reached" ? "现有信息仍不足" : "建议联系在线客服"}</strong><span>{result.response}</span></section>}
       {result.response_type === "error" && <section className="live-terminal error"><strong>本次请求未完成</strong><span>{result.response || result.error?.message}</span>{result.error?.retryable && <button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button>}</section>}

@@ -16,8 +16,27 @@ test("diagnosis exposes the real direction transition", () => {
 });
 
 test("direction selection sends the stable direction id", () => {
-  assert.match(source, /selected_direction: direction\.id/);
   assert.match(source, /execute\(direction\.id, JSON\.stringify\(context\), "products"\)/);
+  assert.match(source, /const context = structuredClone\(result\)/);
+  assert.doesNotMatch(source, /selected_direction: direction\.id/);
+});
+
+test("product and no-match results reuse backend management advice without duplicate copy", () => {
+  assert.match(source, /function getAdditionalManagementAdvice/);
+  assert.equal(source.match(/<ManagementAdviceBlock result=\{result\}\/?>/g)?.length, 2);
+  assert.match(source, /responseText\.includes\(comparable\)/);
+  assert.match(source, /if \(advice\.length === 0\) return null/);
+});
+
+test("product language is informational rather than a confirmed-use recommendation", () => {
+  assert.match(source, /相关产品供了解/);
+  assert.match(source, /不代表已确认适用于当前情况/);
+  assert.doesNotMatch(source, /适合当前方向的产品/);
+  assert.doesNotMatch(source, /index === 0 \? "首选"/);
+});
+
+test("workflow keeps the conversation id returned by Coze", () => {
+  assert.match(source, /conversationId\.current = next\.conversation_id/);
 });
 
 test("live results render every terminal branch and verified channels", () => {

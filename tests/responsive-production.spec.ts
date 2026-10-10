@@ -51,8 +51,10 @@ test("the complete mobile chat flow keeps compact phone-specific density", async
       : input.includes("病猪目前处于什么生长阶段")
         ? shell({ response_type: "diagnosis", response: "结合目前信息，更符合仔猪腹泻相关表现。", case_data: { age: "约50日龄", stage: "保育猪" }, diagnosis: { display_title: "初步判断：更符合仔猪腹泻", warning: "请持续观察精神和饮水变化。" } })
         : input.includes("治疗方案和解决方向")
-          ? shell({ response_type: "direction_selection", management_advice: ["加强饮水与环境卫生管理。"], solution_directions: [{ id: "DIR-0001", name: "补液与电解质支持", description: "支持水盐平衡恢复", mechanism: "补充水分与电解质", expected_improvement: "改善脱水风险" }] })
-          : shell({ response_type: "product", result_mode: "product", response: "匹配到1项产品。", selected_direction: "DIR-0001", recommended_products: [{ product_id: "PROD-0001", product_name: "口服补液盐", manufacturer: "示例厂家", product_category: "补液产品", recommendation_reason: "与当前所选方向匹配", source_id: "PROD-0001" }] });
+          ? shell({ response_type: "direction_selection", management_advice: ["加强饮水与环境卫生管理。"], solution_directions: [{ id: "DIR-0001", name: "补液与电解质支持", description: "支持水盐平衡恢复", mechanism: "补充水分与电解质", expected_improvement: "改善脱水风险" }, { id: "DIR-0002", name: "环境管理", description: "减少持续暴露", mechanism: "改善圈舍环境", expected_improvement: "降低环境风险" }] })
+          : input === "DIR-0002"
+            ? shell({ response_type: "no_match", result_mode: "no_match", response: "暂未查询到可靠产品。", selected_direction: "DIR-0002", management_advice: ["先改善通风并保持圈舍干燥。"] })
+            : shell({ response_type: "product", result_mode: "product", response: "匹配到1项产品。", selected_direction: "DIR-0001", management_advice: ["持续观察饮水状态。", "持续观察饮水状态。"], recommended_products: [{ product_id: "PROD-0001", product_name: "口服补液盐", manufacturer: "示例厂家", product_category: "补液产品", recommendation_reason: "与当前所选方向匹配", source_id: "PROD-0001" }] });
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(payload) });
   });
 
@@ -70,10 +72,17 @@ test("the complete mobile chat flow keeps compact phone-specific density", async
 
   await page.getByRole("button", { name: /查看解决方向/ }).click();
   await expect(page.locator(".live-direction-list")).toBeVisible();
-  await expect(page.locator(".live-direction-list>button")).toHaveCSS("padding", "11px 10px");
+  await expect(page.locator(".live-direction-list>button").first()).toHaveCSS("padding", "11px 10px");
 
   await page.getByRole("button", { name: /补液与电解质支持/ }).click();
   await expect(page.locator(".live-product-card")).toBeVisible();
   await expect(page.locator(".live-product-card")).toHaveCSS("padding", "12px");
   await expect(page.locator(".product-card>div>strong")).toHaveCSS("font-size", "14px");
+  await expect(page.getByRole("heading", { name: "相关产品供了解" })).toBeVisible();
+  await expect(page.getByText("持续观察饮水状态。")).toHaveCount(1);
+
+  await page.getByRole("button", { name: /返回解决方向/ }).click();
+  await page.getByRole("button", { name: /环境管理/ }).click();
+  await expect(page.locator(".live-no-match")).toBeVisible();
+  await expect(page.getByText("先改善通风并保持圈舍干燥。")).toBeVisible();
 });

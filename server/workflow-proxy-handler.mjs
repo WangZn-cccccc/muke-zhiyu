@@ -31,6 +31,21 @@ async function readRequestBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
+export function normalizeWorkflowPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+  const normalized = { ...payload };
+  if (typeof normalized.management_advice === 'string') {
+    normalized.management_advice = normalized.management_advice.trim()
+      ? [normalized.management_advice.trim()]
+      : [];
+  } else if (Array.isArray(normalized.management_advice)) {
+    normalized.management_advice = normalized.management_advice
+      .map(item => typeof item === 'string' ? item.trim() : item)
+      .filter(item => item !== '');
+  }
+  return normalized;
+}
+
 export function createWorkflowHandler({ env = process.env, fetchImpl = fetch } = {}) {
   return async function workflowHandler(req, res) {
     const origin = req.headers?.origin || '';
@@ -71,7 +86,7 @@ export function createWorkflowHandler({ env = process.env, fetchImpl = fetch } =
 
       const raw = await upstream.text();
       let payload;
-      try { payload = JSON.parse(raw); }
+      try { payload = normalizeWorkflowPayload(JSON.parse(raw)); }
       catch { return sendJson(res, 502, { error: 'Coze returned non-JSON content', request_id: requestId }, origin); }
       if (!upstream.ok) return sendJson(res, 502, { error: 'Coze request failed', upstream_status: upstream.status, request_id: requestId }, origin);
 
@@ -89,4 +104,3 @@ export function createWorkflowHandler({ env = process.env, fetchImpl = fetch } =
     }
   };
 }
-

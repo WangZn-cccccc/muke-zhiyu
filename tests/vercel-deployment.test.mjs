@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { createWorkflowHandler } from '../server/workflow-proxy-handler.mjs';
+import { createWorkflowHandler, normalizeWorkflowPayload } from '../server/workflow-proxy-handler.mjs';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -58,4 +58,10 @@ test('cloud handler validates required user input before calling Coze', async ()
   await handler(req, res);
   assert.equal(res.statusCode, 400);
   assert.deepEqual(JSON.parse(res.body), { error: 'user_input is required' });
+});
+
+test('proxy accepts Coze management advice as an empty or populated string without generating content', () => {
+  assert.deepEqual(normalizeWorkflowPayload({ management_advice: ' 加强饮水管理。 ' }).management_advice, ['加强饮水管理。']);
+  assert.deepEqual(normalizeWorkflowPayload({ management_advice: '  ' }).management_advice, []);
+  assert.deepEqual(normalizeWorkflowPayload({ management_advice: [' 建议一 ', '', '建议二'] }).management_advice, ['建议一', '建议二']);
 });
