@@ -17,7 +17,7 @@ export function validateWorkflowResponse(p){
  if(!obj(p.question_answers))add('question_answers','必须是对象');
  if(!STATUSES.has(p.recommendation_status))add('recommendation_status','不在允许枚举中'); if(!MODES.has(p.result_mode))add('result_mode','不在允许枚举中');
  const qs=Array.isArray(p.questions)?p.questions:[];
- if(p.response_type==='question'){if(qs.length<1||qs.length>3)add('questions','每轮必须包含 1—3 题');if(qs.length===3&&p.follow_up_round!==1)add('questions','只有宽泛症状首轮允许3题');if(p.follow_up_round<1||p.follow_up_round>4)add('follow_up_round','追问响应轮次必须为 1—4');}else if(qs.length)add('questions','非追问响应不得携带待回答问题');
+ if(p.response_type==='question'){if(qs.length<1||qs.length>3)add('questions','每轮必须包含 1—3 题');if(p.follow_up_round<1||p.follow_up_round>4)add('follow_up_round','追问响应轮次必须为 1—4');}else if(qs.length)add('questions','非追问响应不得携带待回答问题');
  const ids=new Set(); qs.forEach((q,i)=>{const x=`questions[${i}]`;if(!obj(q))return add(x,'必须是对象');if(!txt(q.id))add(`${x}.id`,'必须是非空字符串');else if(ids.has(q.id))add(`${x}.id`,'同一轮 id 不得重复');else ids.add(q.id);if(!txt(q.target_field))add(`${x}.target_field`,'必须指向病例字段');if(!txt(q.question))add(`${x}.question`,'必须是非空字符串');if(q.question_type==='single_choice'){if(!Array.isArray(q.options)||q.options.length<2||q.options.length>5)add(`${x}.options`,'单选题必须有 2—5 项');if(q.allow_other!==true)add(`${x}.allow_other`,'单选题必须允许其他补充');}});
  const pending=Array.isArray(p.pending_question_ids)?p.pending_question_ids:[], answers=obj(p.question_answers)?p.question_answers:{};
  pending.forEach(id=>{if(!answers[id]||!['pending','invalid'].includes(answers[id].status))add(`question_answers.${id}`,'待回答问题必须具有 pending 或 invalid 状态');});

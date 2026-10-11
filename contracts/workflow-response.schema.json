@@ -64,10 +64,6 @@
           "fourth_round_reason": { "type": "string", "minLength": 1 }
         }
       }
-    },
-    {
-      "if": { "properties": { "questions": { "minItems": 3 } } },
-      "then": { "properties": { "follow_up_round": { "const": 1 } } }
     }
   ],
   "$defs": {

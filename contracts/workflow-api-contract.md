@@ -121,7 +121,7 @@ Coze 每次成功执行都必须返回同一顶层结构；不适用的数据使
 
 | 值 | 含义 | 前端行为 | 必填结构 |
 | --- | --- | --- | --- |
-| `question` | 需要用户补充信息 | 常规展示1～2题；宽泛症状首轮可展示2～3题 | `questions` |
+| `question` | 需要用户补充信息 | 每轮展示1～3题；不同方面的有效目标不足时允许1～2题，不凑数 | `questions` |
 | `diagnosis` | 已形成辅助诊断 | 展示结构化诊断 | `diagnosis` |
 | `direction_selection` | 等待选择解决方向 | 展示方向列表 | `solution_directions` |
 | `product` | 返回产品方案 | 展示产品卡片 | `recommended_products` |
@@ -158,7 +158,7 @@ Coze 每次成功执行都必须返回同一顶层结构；不适用的数据使
 
 ### 7.1 规则
 
-- `PRD_REQUIRED`：常规每轮1～2个问题；用户仅提供宽泛症状、RAG召回较多且首轮无法形成可靠候选时，首轮允许2～3个高价值观察问题。
+- `PRD_REQUIRED`：每轮最多3个不同方面的高价值追问目标；合适目标不足时允许1～2个，不凑数。此规则适用于首轮和后续轮次。
 - `PRD_REQUIRED`：常规尽量在前三轮缩圈；只有存在用户可观察、未询问且能明显改变候选排序的信息时，才允许第4轮保底追问；绝不设置第5轮。
 - `PRD_REQUIRED`：不得重复询问已确认或已有效回答的信息。
 - `PRD_REQUIRED`：使用选项时允许用户补充其他情况。
@@ -365,7 +365,7 @@ result_mode:
 
 | response_type | 必须满足 |
 | --- | --- |
-| `question` | `success=true`；常规问题1～2个，宽泛症状首轮最多3个；`follow_up_round` 为1～4；第4轮必须带触发理由 |
+| `question` | `success=true`；每轮1～3个问题，不凑数；`follow_up_round` 为1～4；第4轮必须带触发理由 |
 | `diagnosis` | `diagnosis` 非空；证据均有来源 |
 | `direction_selection` | `solution_directions.length` 为1～4；状态为 `waiting_for_selection` |
 | `product` | `result_mode=product`；产品1～3个且都有 `source_id` |
