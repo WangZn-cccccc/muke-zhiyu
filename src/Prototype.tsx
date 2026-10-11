@@ -145,6 +145,53 @@ function ManagementAdviceBlock({ result }: { result: WorkflowResponse }) {
   return <div className="management-guidance compact-management"><h2>当前管理与排查建议</h2><ul>{advice.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></div>;
 }
 
+function splitNumberedItems(value: string) {
+  return value.split(/\s*(?=\d+[.．、]\s*)/)
+    .map(item => item.replace(/^\d+[.．、]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+function StructuredServiceEndResponse({ text }: { text: string }) {
+  const disclaimerMatch = text.match(/(?:【\s*)?免责声明(?:\s*】)?\s*[：:]?\s*([\s\S]*)$/);
+  const disclaimer = disclaimerMatch?.[1]?.trim() || "";
+  const body = disclaimerMatch ? text.slice(0, disclaimerMatch.index).trim() : text.trim();
+  const reasonMarker = body.match(/可能的原因\s*[：:]?/);
+  const adviceMarkers = [...body.matchAll(/(?:^|\s)建议\s*[：:]/g)];
+  const adviceMarker = adviceMarkers.at(-1) || null;
+  const candidateMarker = body.match(/(?:我保留的)?候选方向如下\s*[：:]?/);
+  const candidateStart = candidateMarker && candidateMarker.index !== undefined ? candidateMarker.index + candidateMarker[0].length : -1;
+  const reasonStart = reasonMarker?.index ?? -1;
+  const adviceStart = adviceMarker?.index ?? -1;
+  const intro = candidateMarker?.index !== undefined ? body.slice(0, candidateMarker.index).replace(/[，,]\s*$/, "").trim() : "";
+  const candidateRaw = candidateStart >= 0 ? body.slice(candidateStart, reasonStart >= 0 ? reasonStart : adviceStart >= 0 ? adviceStart : undefined).trim() : "";
+  const reasonRaw = reasonStart >= 0 ? body.slice(reasonStart + (reasonMarker?.[0].length || 0), adviceStart >= 0 ? adviceStart : undefined).trim() : "";
+  const adviceRaw = adviceStart >= 0 ? body.slice(adviceStart + (adviceMarker?.[0].length || 0)).trim() : "";
+  const candidateParts = candidateRaw.split(/\s*[•·]\s*/).map(item => item.trim()).filter(Boolean);
+  let assessment = "";
+  const candidates = candidateParts.map((item, index) => {
+    const assessmentMatch = item.match(/\s*(?=(?:相关疾病的临床表现|根据目前提供的信息|当前信息不足以形成可靠))/);
+    if (index === candidateParts.length - 1 && assessmentMatch?.index !== undefined) {
+      assessment = item.slice(assessmentMatch.index).trim();
+      return item.slice(0, assessmentMatch.index).trim();
+    }
+    return item;
+  }).filter(Boolean);
+  const reasons = reasonRaw.split(/\s*[•·]\s*/).map(item => item.trim()).filter(Boolean);
+  const advice = splitNumberedItems(adviceRaw);
+  if (!candidateMarker || candidates.length === 0) return <p className="service-end-plain">{text}</p>;
+  return <div className="structured-service-end">
+    {intro && <p className="service-end-intro">{intro}</p>}
+    <section><h3>保留候选方向</h3><div className="candidate-list">{candidates.map((item, index) => {
+      const [name, ...descriptionParts] = item.split(/[：:]/);
+      return <article key={`${index}-${name}`}><strong>{name.trim()}</strong>{descriptionParts.length > 0 && <p>{descriptionParts.join("：").trim()}</p>}</article>;
+    })}</div></section>
+    {assessment && <section className="assessment-block"><h3>当前判断说明</h3><p>{assessment}</p></section>}
+    {reasons.length > 0 && <section><h3>可能的原因</h3><ul>{reasons.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></section>}
+    {advice.length > 0 && <section><h3>下一步建议</h3><ol>{advice.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol></section>}
+    {disclaimer && <small className="service-end-disclaimer">免责声明：{disclaimer}</small>}
+  </div>;
+}
+
 function DiagnosisContent({ result, onDirections }: { result: WorkflowResponse; onDirections?: () => void }) {
   if (!result.diagnosis) return null;
   const summary = getCaseSummary(result.case_data || {});
@@ -325,7 +372,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
       {result.response_type === "management" && <section className="management-guidance live-management"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><h2>当前管理与排查建议</h2>{result.management_advice?.length === 0 && <span>{result.response}</span>}<ul>{(result.management_advice || []).map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
       {result.response_type === "no_match" && <section className="no-match-card live-no-match"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><strong>暂未匹配到可靠产品</strong><p>{result.response}</p><ManagementAdviceBlock result={result}/><span>没有可靠结果时不会使用其他方向的产品补位，你可以返回重新选择方向或联系专业人员进一步处理。</span></section>}
       {result.response_type === "emergency" && <section className="live-emergency"><QuestionMarkCircledIcon/><div><span>紧急风险提醒</span><h2>{result.emergency?.title || "发现需要立即处理的风险信号"}</h2><p>{result.response}</p><ol>{(result.emergency?.actions || []).map((item, index) => <li key={index}>{item}</li>)}</ol></div></section>}
-      {result.response_type === "service_end" && <section className="live-terminal service-end"><strong>{result.service_end_reason === "testing_required" ? "建议进行专业检测" : result.service_end_reason === "vet_required" ? "建议联系专业兽医" : result.service_end_reason === "follow_up_limit_reached" ? "现有信息仍不足" : "建议联系在线客服"}</strong><span>{result.response}</span></section>}
+      {result.response_type === "service_end" && <section className="live-terminal service-end"><strong>{result.service_end_reason === "testing_required" ? "建议进行专业检测" : result.service_end_reason === "vet_required" ? "建议联系专业兽医" : result.service_end_reason === "follow_up_limit_reached" ? "现有信息仍不足" : "建议联系在线客服"}</strong><StructuredServiceEndResponse text={result.response}/></section>}
       {result.response_type === "error" && <section className="live-terminal error"><strong>本次请求未完成</strong><span>{result.response || result.error?.message}</span>{result.error?.code === "INVALID_REQUEST" && directionResult && <button onClick={returnToDirections}>返回解决方向重新选择</button>}{result.error?.retryable && <button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button>}</section>}
       {(["knowledge","out_of_scope"] as string[]).includes(result.response_type) && <div className={`live-terminal ${result.response_type}`}><span>{result.response}</span></div>}
     </motion.article>}

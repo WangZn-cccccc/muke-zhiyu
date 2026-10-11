@@ -61,3 +61,17 @@ test("optional unanswered questions do not crash or acquire invented answers", a
   expect(ctx.pending_question_ids).toEqual(["q2"]);
   expect(ctx.question_answers.q2.status).toBe("pending");
 });
+
+test("service-end content is presented as sections instead of a dense paragraph", async ({ page }) => {
+  const response = "综合您提供的信息，我保留的候选方向如下： • 蓝耳病：存在发热、喘气等表现。 • 猪支原体肺炎：以咳嗽、喘气为主要表现。 相关疾病的临床表现高度重叠，当前信息不足以形成可靠单一诊断。可能的原因： • 关键观察信息已经达到追问上限。 • 需要实验室检测才能有效区分。 建议：1. 联系专业兽医；2. 采集适当样本送检。【免责声明】以上建议仅供参考，不替代执业兽医的现场诊断。";
+  await page.route("**/api/workflow/run", route => route.fulfill({ json: shell({ response_type: "service_end", service_end_reason: "follow_up_limit_reached", response }) }));
+  await page.goto("/");
+  await page.locator(".composer textarea").fill("测试复杂问诊结果");
+  await page.locator(".send-button").click();
+  await expect(page.locator(".service-end")).toBeVisible();
+  await expect(page.locator(".candidate-list article")).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "当前判断说明" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "可能的原因" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "下一步建议" })).toBeVisible();
+  await expect(page.locator(".service-end-disclaimer")).toContainText("不替代执业兽医");
+});

@@ -39,6 +39,16 @@ test("workflow keeps the conversation id returned by Coze", () => {
   assert.match(source, /conversationId\.current = next\.conversation_id/);
 });
 
+test("service-end copy is split into readable sections with a compact disclaimer", () => {
+  assert.match(source, /function StructuredServiceEndResponse/);
+  assert.match(source, /保留候选方向/);
+  assert.match(source, /当前判断说明/);
+  assert.match(source, /可能的原因/);
+  assert.match(source, /下一步建议/);
+  assert.match(source, /service-end-disclaimer/);
+  assert.match(source, /<StructuredServiceEndResponse text=\{result\.response\}\/>/);
+});
+
 test("live results render every terminal branch and verified channels", () => {
   for (const responseType of ["product", "management", "no_match", "emergency", "service_end", "error"]) {
     assert.ok(source.includes(`result.response_type === "${responseType}"`), `missing UI for ${responseType}`);
