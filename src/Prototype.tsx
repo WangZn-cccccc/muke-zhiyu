@@ -155,7 +155,7 @@ function StructuredServiceEndResponse({ text }: { text: string }) {
   const disclaimerMatch = text.match(/(?:【\s*)?免责声明(?:\s*】)?\s*[：:]?\s*([\s\S]*)$/);
   const disclaimer = disclaimerMatch?.[1]?.trim() || "";
   const body = disclaimerMatch ? text.slice(0, disclaimerMatch.index).trim() : text.trim();
-  const reasonMarker = body.match(/可能的原因\s*[：:]?/);
+  const reasonMarker = body.match(/(?:可能的原因|为什么暂时无法确定)\s*[：:]?/);
   const adviceMarkers = [...body.matchAll(/(?:^|\s)建议\s*[：:]/g)];
   const adviceMarker = adviceMarkers.at(-1) || null;
   const candidateMarker = body.match(/(?:我保留的)?候选方向如下\s*[：:]?/);
@@ -183,11 +183,17 @@ function StructuredServiceEndResponse({ text }: { text: string }) {
     {intro && <p className="service-end-intro">{intro}</p>}
     <section><h3>保留候选方向</h3><div className="candidate-list">{candidates.map((item, index) => {
       const [name, ...descriptionParts] = item.split(/[：:]/);
-      return <article key={`${index}-${name}`}><strong>{name.trim()}</strong>{descriptionParts.length > 0 && <p>{descriptionParts.join("：").trim()}</p>}</article>;
+      const details = descriptionParts.join("：").trim().split(/(?=(?:支持依据|尚缺信息|关键区别|重点观察)[：:])/).filter(Boolean);
+      return <article key={`${index}-${name}`}><strong>{name.trim()}</strong><div className="candidate-details">{details.map((detail, detailIndex) => {
+        const label = detail.match(/^(支持依据|尚缺信息|关键区别|重点观察)[：:]/);
+        return <p key={detailIndex}>{label && <b className="candidate-detail-label">{label[0]}</b>}{label ? detail.slice(label[0].length) : detail}</p>;
+      })}</div></article>;
     })}</div></section>
-    {assessment && <section className="assessment-block"><h3>当前判断说明</h3><p>{assessment}</p></section>}
-    {reasons.length > 0 && <section><h3>可能的原因</h3><ul>{reasons.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></section>}
-    {advice.length > 0 && <section><h3>下一步建议</h3><ol>{advice.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol></section>}
+    {reasons.length > 0 && <section><h3>为什么暂时无法确定</h3><div className="service-detail-box"><ul>{reasons.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></div></section>}
+    {(assessment || advice.length > 0) && <section><h3>当前判断与下一步建议</h3><div className="service-detail-box">
+      {assessment && <p>{assessment}</p>}
+      {advice.length > 0 && <ol>{advice.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol>}
+    </div></section>}
     {disclaimer && <small className="service-end-disclaimer">免责声明：{disclaimer}</small>}
   </div>;
 }

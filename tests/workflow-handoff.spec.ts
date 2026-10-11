@@ -70,8 +70,7 @@ test("service-end content is presented as sections instead of a dense paragraph"
   await page.locator(".send-button").click();
   await expect(page.locator(".service-end")).toBeVisible();
   await expect(page.locator(".candidate-list article")).toHaveCount(2);
-  await expect(page.getByRole("heading", { name: "当前判断说明" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "可能的原因" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "下一步建议" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "为什么暂时无法确定" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前判断与下一步建议" })).toBeVisible();
   await expect(page.locator(".service-end-disclaimer")).toContainText("不替代执业兽医");
 });

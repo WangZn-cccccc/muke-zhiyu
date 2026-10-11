@@ -158,3 +158,4 @@
   .responsive-runtime .product-safety{padding:9px 10px;font-size:9px}
   .responsive-runtime .live-error,.responsive-runtime .live-terminal,.responsive-runtime .live-emergency{padding:13px;border-radius:13px;font-size:12px}
 }
+.service-detail-box{display:grid;gap:14px;padding:14px 16px;border:1px solid #d9e8ee;border-radius:12px;background:#f3f9fc}.service-detail-box p{margin:0;white-space:pre-wrap;line-height:1.8}.candidate-list p{white-space:pre-wrap}.candidate-detail-label{color:#217ca2;font-weight:700}.candidate-details{display:grid;gap:9px}

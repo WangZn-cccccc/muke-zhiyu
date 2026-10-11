@@ -42,7 +42,7 @@ test("workflow keeps the conversation id returned by Coze", () => {
 test("service-end copy is split into readable sections with a compact disclaimer", () => {
   assert.match(source, /function StructuredServiceEndResponse/);
   assert.match(source, /保留候选方向/);
-  assert.match(source, /当前判断说明/);
+  assert.match(source, /当前判断与下一步建议/);
   assert.match(source, /可能的原因/);
   assert.match(source, /下一步建议/);
   assert.match(source, /service-end-disclaimer/);
