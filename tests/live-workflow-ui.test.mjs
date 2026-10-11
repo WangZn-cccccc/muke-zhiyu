@@ -69,7 +69,20 @@ test("direction cards avoid duplicate internal copy", () => {
 test("recommendation results can return to the preserved direction list", () => {
   assert.match(source, /setDirectionResult\(structuredClone\(next\)\)/);
   assert.match(source, /setResult\(structuredClone\(directionResult\)\)/);
-  assert.equal(source.match(/onClick=\{returnToDirections\}/g)?.length, 3);
+  assert.equal(source.match(/onClick=\{returnToDirections\}/g)?.length, 4);
+});
+
+test("direction navigation preserves latest request state and invalid selection can recover", () => {
+  assert.match(source, /latestContext\.current = structuredClone\(next\)/);
+  assert.match(source, /structuredClone\(latestContext\.current \|\| result\)/);
+  assert.match(source, /next\.error\?\.code !== "INVALID_REQUEST"/);
+  assert.match(source, /返回解决方向重新选择/);
+});
+
+test("unanswered optional questions remain pending instead of being marked answered", () => {
+  assert.match(source, /questions\.flatMap/);
+  assert.match(source, /if \(!answer\?\.value/);
+  assert.match(source, /context\.pending_question_ids\.push\(q\.id\)/);
 });
 
 test("duplicate direction content is removed before rendering", () => {

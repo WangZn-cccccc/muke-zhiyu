@@ -198,6 +198,8 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   const [pastTurns, setPastTurns] = useState<PastTurn[]>([]);
   const [loadingMode, setLoadingMode] = useState<LoadingMode>("understanding");
   const [directionResult, setDirectionResult] = useState<WorkflowResponse | null>(null);
+  // Keep request state separate from the older direction screen used for navigation.
+  const latestContext = useRef<WorkflowResponse | null>(null);
   const conversationId = useRef(`conv_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`);
   const lastRequest = useRef<{ text: string; context: string; mode: LoadingMode }>({ text: initialText, context: "", mode: "understanding" });
 
@@ -207,6 +209,9 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     try {
       const next = await runWorkflow({ user_input: text, conversation_context: context, conversation_id: conversationId.current, request_id: `req_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}` });
       if (next.conversation_id) conversationId.current = next.conversation_id;
+      if (next.response_type !== "error" || next.error?.code !== "INVALID_REQUEST") {
+        latestContext.current = structuredClone(next);
+      }
       if (next.response_type === "direction_selection") setDirectionResult(structuredClone(next));
       setResult(next); setAnswers({});
     } catch (reason) {
@@ -220,19 +225,23 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   useEffect(() => { void execute(initialText, "", "understanding"); }, [initialText]);
 
   const questions = Array.isArray(result?.questions) ? result.questions : [];
-  const ready = questions.length > 0 && questions.every(q => !q.required || Boolean(answers[q.id]?.value && (answers[q.id].value !== "other" || answers[q.id].other.trim())));
+  const ready = questions.some(q => Boolean(answers[q.id]?.value && (answers[q.id].value !== "other" || answers[q.id].other.trim()))) && questions.every(q => !q.required || Boolean(answers[q.id]?.value && (answers[q.id].value !== "other" || answers[q.id].other.trim())));
   const submitAnswers = () => {
     if (!result || !ready) return;
     const context = structuredClone(result) as Record<string, any>;
     context.question_answers = { ...(context.question_answers || {}) };
     context.pending_question_ids = [];
     const completedQuestions: CompletedQuestion[] = [];
-    const requestParts = questions.map(q => {
+    const requestParts = questions.flatMap(q => {
       const answer = answers[q.id];
+      if (!answer?.value || (answer.value === "other" && !answer.other.trim())) {
+        context.pending_question_ids.push(q.id);
+        return [];
+      }
       const shown = answer.value === "other" ? answer.other.trim() : (q.options.find(option => option.value === answer.value)?.label || answer.value);
       completedQuestions.push({ id: q.id, question: q.question, answer: shown });
       context.question_answers[q.id] = { status: "answered", value: answer.value, other_text: answer.value === "other" ? answer.other.trim() : null };
-      return `${q.question}：${shown}`;
+      return [`${q.question}：${shown}`];
     });
     const requestReply = requestParts.join("；");
     setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "questions", questions: completedQuestions }]);
@@ -246,7 +255,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
   };
   const choose = (direction: WorkflowDirection) => {
     if (!result) return;
-    const context = structuredClone(result);
+    const context = structuredClone(latestContext.current || result);
     setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: "", user: `我选择：${direction.name}` }]);
     void execute(direction.id, JSON.stringify(context), "products");
   };
@@ -262,7 +271,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
       const value = text.trim();
       if (!value || loading || !result) return false;
 
-      const context = structuredClone(result) as Record<string, any>;
+      const context = structuredClone(latestContext.current || result) as Record<string, any>;
       const assistantText = result.response_type === "question"
         ? questions.map(question => question.question).filter(Boolean).join("；")
         : result.response;
@@ -317,7 +326,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
       {result.response_type === "no_match" && <section className="no-match-card live-no-match"><button className="text-back live-result-back" onClick={returnToDirections}>‹ 返回解决方向</button><strong>暂未匹配到可靠产品</strong><p>{result.response}</p><ManagementAdviceBlock result={result}/><span>没有可靠结果时不会使用其他方向的产品补位，你可以返回重新选择方向或联系专业人员进一步处理。</span></section>}
       {result.response_type === "emergency" && <section className="live-emergency"><QuestionMarkCircledIcon/><div><span>紧急风险提醒</span><h2>{result.emergency?.title || "发现需要立即处理的风险信号"}</h2><p>{result.response}</p><ol>{(result.emergency?.actions || []).map((item, index) => <li key={index}>{item}</li>)}</ol></div></section>}
       {result.response_type === "service_end" && <section className="live-terminal service-end"><strong>{result.service_end_reason === "testing_required" ? "建议进行专业检测" : result.service_end_reason === "vet_required" ? "建议联系专业兽医" : result.service_end_reason === "follow_up_limit_reached" ? "现有信息仍不足" : "建议联系在线客服"}</strong><span>{result.response}</span></section>}
-      {result.response_type === "error" && <section className="live-terminal error"><strong>本次请求未完成</strong><span>{result.response || result.error?.message}</span>{result.error?.retryable && <button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button>}</section>}
+      {result.response_type === "error" && <section className="live-terminal error"><strong>本次请求未完成</strong><span>{result.response || result.error?.message}</span>{result.error?.code === "INVALID_REQUEST" && directionResult && <button onClick={returnToDirections}>返回解决方向重新选择</button>}{result.error?.retryable && <button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button>}</section>}
       {(["knowledge","out_of_scope"] as string[]).includes(result.response_type) && <div className={`live-terminal ${result.response_type}`}><span>{result.response}</span></div>}
     </motion.article>}
   </>;
