@@ -34,7 +34,7 @@ test('proxy timeout defaults to 110 seconds and stays below the platform deadlin
     durations.push(ms);
     return new AbortController().signal;
   });
-  for (const override of [undefined, '90000', '180000', 'invalid', '-1']) {
+  for (const override of [undefined, '60000', '90000', '180000', 'invalid', '-1']) {
     const env = { COZE_API_URL: 'https://example.test/run', COZE_API_TOKEN: 'secret' };
     if (override !== undefined) env.COZE_TIMEOUT_MS = override;
     const handler = createWorkflowHandler({
@@ -43,7 +43,7 @@ test('proxy timeout defaults to 110 seconds and stays below the platform deadlin
     });
     await handler({ method: 'POST', headers: {}, body: { user_input: '追问回答' } }, responseRecorder());
   }
-  assert.deepEqual(durations, [110000, 90000, 110000, 110000, 110000]);
+  assert.deepEqual(durations, [110000, 110000, 90000, 110000, 110000, 110000]);
   const config = JSON.parse(await read('vercel.json'));
   assert.ok(Math.max(...durations) <= config.functions['api/**/*.mjs'].maxDuration * 1000 - 10000);
 });
