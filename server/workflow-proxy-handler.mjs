@@ -61,7 +61,11 @@ export function createWorkflowHandler({ env = process.env, fetchImpl = fetch } =
 
     const cozeUrl = env.COZE_API_URL || '';
     const cozeToken = env.COZE_API_TOKEN || '';
-    const timeoutMs = Number(env.COZE_TIMEOUT_MS || 60000);
+    // Leave ten seconds for error handling before Vercel's 120-second deadline.
+    const configuredTimeoutMs = Number(env.COZE_TIMEOUT_MS || 110000);
+    const timeoutMs = Number.isFinite(configuredTimeoutMs) && configuredTimeoutMs > 0
+      ? Math.min(Math.floor(configuredTimeoutMs), 110000)
+      : 110000;
     if (!cozeUrl || !cozeToken) return sendJson(res, 503, { error: 'Coze API is not configured' }, origin);
 
     try {

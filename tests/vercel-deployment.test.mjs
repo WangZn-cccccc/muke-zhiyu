@@ -18,7 +18,7 @@ test('Vercel deployment serves the API before the SPA fallback', async () => {
   const config = JSON.parse(await read('vercel.json'));
   assert.equal(config.outputDirectory, 'dist/client');
   assert.deepEqual(config.routes[0], { handle: 'filesystem' });
-  assert.equal(config.functions['api/**/*.mjs'].maxDuration, 60);
+  assert.equal(config.functions['api/**/*.mjs'].maxDuration, 120);
 });
 
 test('production frontend defaults to the same-origin API', async () => {
@@ -26,6 +26,38 @@ test('production frontend defaults to the same-origin API', async () => {
   assert.match(source, /VITE_LOCAL_PROXY_URL \|\| ''/);
   assert.match(source, /\/api\/workflow\/run/);
   assert.doesNotMatch(source, /\|\| 'http:\/\/127\.0\.0\.1:3001'/);
+});
+
+test('proxy timeout defaults to 110 seconds and stays below the platform deadline', async t => {
+  const durations = [];
+  t.mock.method(AbortSignal, 'timeout', ms => {
+    durations.push(ms);
+    return new AbortController().signal;
+  });
+  for (const override of [undefined, '90000', '180000', 'invalid', '-1']) {
+    const env = { COZE_API_URL: 'https://example.test/run', COZE_API_TOKEN: 'secret' };
+    if (override !== undefined) env.COZE_TIMEOUT_MS = override;
+    const handler = createWorkflowHandler({
+      env,
+      fetchImpl: async () => ({ ok: false, status: 503, text: async () => '{}' }),
+    });
+    await handler({ method: 'POST', headers: {}, body: { user_input: '追问回答' } }, responseRecorder());
+  }
+  assert.deepEqual(durations, [110000, 90000, 110000, 110000, 110000]);
+  const config = JSON.parse(await read('vercel.json'));
+  assert.ok(Math.max(...durations) <= config.functions['api/**/*.mjs'].maxDuration * 1000 - 10000);
+});
+
+test('upstream timeout returns a JSON 504 rather than a platform error page', async () => {
+  const handler = createWorkflowHandler({
+    env: { COZE_API_URL: 'https://example.test/run', COZE_API_TOKEN: 'secret' },
+    fetchImpl: async () => { throw new DOMException('Timed out', 'TimeoutError'); },
+  });
+  const res = responseRecorder();
+  await handler({ method: 'POST', headers: {}, body: { user_input: '追问回答' } }, res);
+  assert.equal(res.statusCode, 504);
+  assert.equal(res.headers['content-type'], 'application/json; charset=utf-8');
+  assert.deepEqual(JSON.parse(res.body), { error: 'Coze request timed out' });
 });
 
 test('portable production server serves the SPA and workflow API on the platform port', async () => {
