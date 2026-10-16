@@ -54,6 +54,22 @@ type LoadingMode = "understanding" | "followup" | "directions" | "products";
 type LiveError = { message: string; requestId?: string; details: WorkflowContractError[] };
 type LiveWorkflowHandle = { submitText: (text: string) => boolean };
 
+// Suppress only a response made entirely of the displayed questions, not explanations.
+function getQuestionExplanation(result: WorkflowResponse): string {
+  const text = result.response?.trim() || "";
+  let remaining = text.replace(/(?:^|\n)\s*\d+[.、．）)]\s*/g, "");
+  for (const question of result.questions || []) remaining = remaining.replace(question.question, "");
+  return remaining.replace(/[\s\p{P}\p{S}]/gu, "") ? text : "";
+}
+
+function isSameQuestionForm(previous: WorkflowResponse | null, next: WorkflowResponse): boolean {
+  return previous?.response_type === "question" && next.response_type === "question"
+    && previous.conversation_id === next.conversation_id
+    && previous.follow_up_round === next.follow_up_round
+    && JSON.stringify(previous.questions) === JSON.stringify(next.questions)
+    && JSON.stringify(previous.pending_question_ids) === JSON.stringify(next.pending_question_ids);
+}
+
 const INTERNAL_CASE_STATES = new Set([
   "unavailable",
   "not_provided",
@@ -261,12 +277,14 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     setLoadingMode(mode); setLoading(true); setError(null); keyboard.hide();
     try {
       const next = await runWorkflow({ user_input: text, conversation_context: context, conversation_id: conversationId.current, request_id: `req_web_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}` });
+      const preserveDraft = isSameQuestionForm(latestContext.current, next);
       if (next.conversation_id) conversationId.current = next.conversation_id;
       if (next.response_type !== "error" || next.error?.code !== "INVALID_REQUEST") {
         latestContext.current = structuredClone(next);
       }
       if (next.response_type === "direction_selection") setDirectionResult(structuredClone(next));
-      setResult(next); setAnswers({});
+      setResult(next);
+      if (!preserveDraft) setAnswers({});
     } catch (reason) {
       setResult(null);
       setError(reason instanceof WorkflowClientError
@@ -297,6 +315,8 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
       return [`${q.question}：${shown}`];
     });
     const requestReply = requestParts.join("；");
+    const explanation = getQuestionExplanation(result);
+    if (explanation) setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "message", assistant: explanation, user: "" }]);
     setPastTurns(old => [...old, { id: crypto.randomUUID(), kind: "questions", questions: completedQuestions }]);
     void execute(requestReply, JSON.stringify(context), "followup");
   };
@@ -326,7 +346,7 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
 
       const context = structuredClone(latestContext.current || result) as Record<string, any>;
       const assistantText = result.response_type === "question"
-        ? questions.map(question => question.question).filter(Boolean).join("；")
+        ? getQuestionExplanation(result) || result.response || questions.map(question => question.question).filter(Boolean).join("；")
         : result.response;
       setPastTurns(old => [...old, {
         id: crypto.randomUUID(),
@@ -355,12 +375,13 @@ const LiveWorkflowPanel = forwardRef<LiveWorkflowHandle, { initialText: string }
     {pastTurns.map(turn => turn.kind === "questions" ? <motion.section className="answered-question-card" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
       <div className="answered-card-head"><CheckCircledIcon/><strong>本轮信息已补充</strong></div>
       <div className="answered-items">{turn.questions.map(item => <div className="answered-item" key={item.id}><span>{item.question}</span><strong>{item.answer}</strong></div>)}</div>
-    </motion.section> : turn.kind === "diagnosis" ? <motion.div className="past-rich-turn" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}><DiagnosisContent result={turn.result}/></motion.div> : <div className="past-turn" key={turn.id}>{turn.assistant && <div className="past-assistant-message">{turn.assistant}</div>}<motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div></div>)}
+    </motion.section> : turn.kind === "diagnosis" ? <motion.div className="past-rich-turn" key={turn.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}><DiagnosisContent result={turn.result}/></motion.div> : <div className="past-turn" key={turn.id}>{turn.assistant && <div className="past-assistant-message">{turn.assistant}</div>}{turn.user && <motion.div className="user-message" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>{turn.user}</motion.div>}</div>)}
     {loading && <div className={`diagnosing-card loading-${loadingMode}`}>{loadingMode === "understanding" ? <span className="typing-dots" aria-hidden="true"><i/><i/><i/></span> : <span className="thinking-orb"/>}<div><strong>{loadingCopy.title}</strong><p>{loadingCopy.detail}</p></div></div>}
     {error && <div className="live-error"><strong>{error.details.length ? "返回数据需要调整" : "暂时没有连接成功"}</strong><span>{error.message}</span>{error.details.length > 0 && <ul>{error.details.slice(0, 3).map((item, index) => <li key={`${item.path}-${index}`}><code>{item.path}</code>：{item.message}</li>)}</ul>}{error.requestId && <small>问题编号：{error.requestId}</small>}<button onClick={() => void execute(lastRequest.current.text, lastRequest.current.context, lastRequest.current.mode)}>重新尝试</button></div>}
     {!loading && result && <motion.article className="diagnosis-result live-result" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>
       <AssistantState completeLabel={result.response_type === "question" ? "等待补充" : "本轮完成"} />
       {result.response_type === "question" && <div className="live-questions">
+        {getQuestionExplanation(result) && <div className="past-assistant-message question-explanation">{result.response}</div>}
         {questions.map((q, index) => <div className="question-block" key={q.id}><strong><i>{index + 1}</i>{q.question}</strong>
           {q.question_type === "single_choice" ? <div>{q.options.map(option => <button key={option.value} className={answers[q.id]?.value === option.value ? "selected" : ""} onClick={() => setAnswers(old => ({...old,[q.id]:{value:option.value,other:old[q.id]?.other || ""}}))}>{option.label}</button>)}{q.allow_other && !q.options.some(option => option.value === "other") && <button className={answers[q.id]?.value === "other" ? "selected" : ""} onClick={() => setAnswers(old => ({...old,[q.id]:{value:"other",other:old[q.id]?.other || ""}}))}>其他</button>}</div>
           : <KeyboardInput value={answers[q.id]?.value || ""} onChange={event => setAnswers(old => ({...old,[q.id]:{value:event.target.value,other:""}}))} placeholder="请按实际情况补充" />}
